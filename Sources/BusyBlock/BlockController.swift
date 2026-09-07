@@ -13,6 +13,8 @@ final class BlockController: ObservableObject {
     private var loop: Task<Void, Never>?
     private var failures = 0
     private var estimator = EndsAtEstimator()
+    /// While the ws stream delivers timer events, polling is only a safety net.
+    var streamConnected = false
     private let maxFailures = 3
     var onChange: ((BlockState, BlockState) -> Void)?
 
@@ -27,7 +29,7 @@ final class BlockController: ObservableObject {
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.pollOnce()
-                let secs = self?.config.pollIntervalSec ?? 2
+                let secs = (self?.streamConnected ?? false) ? 10 : (self?.config.pollIntervalSec ?? 2)
                 try? await Task.sleep(nanoseconds: UInt64(max(0.5, secs) * 1_000_000_000))
             }
         }
@@ -45,6 +47,15 @@ final class BlockController: ObservableObject {
         s.domains = new.blockedDomains
         apply(s)
         Task { await pollOnce() }
+    }
+
+    /// Timer state pushed by the bar over the websocket.
+    func ingest(snapshot: BusySnapshot, receivedAt: Date) {
+        failures = 0
+        lastError = nil
+        var decided = BlockDecision.evaluate(snapshot: snapshot, config: config, now: receivedAt)
+        decided.endsAt = estimator.update(snapshot: snapshot, macNow: receivedAt)
+        apply(decided)
     }
 
     func pollOnce() async {

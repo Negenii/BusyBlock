@@ -30,83 +30,47 @@ public enum RawHTTPClient {
         }
     }
 
-    /// "host", "host:port", or "http://host:port/" → (host, port).
     public static func parseHost(_ raw: String, defaultPort: Int = 80) -> (String, Int)? {
-        var h = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let r = h.range(of: "://") { h = String(h[r.upperBound...]) }
-        if let slash = h.firstIndex(of: "/") { h = String(h[..<slash]) }
-        guard !h.isEmpty else { return nil }
-        if let colon = h.lastIndex(of: ":"), !h.contains("[") {
-            let port = Int(h[h.index(after: colon)...]) ?? defaultPort
-            let host = String(h[..<colon])
-            return host.isEmpty ? nil : (host, port)
-        }
-        return (h, defaultPort)
+        RawSocket.parseHost(raw, defaultPort: defaultPort)
     }
 
     /// Blocking GET. Call off the main thread. Returns the body on 2xx.
     public static func get(host rawHost: String, path: String, headers: [String: String] = [:],
                            timeout: TimeInterval = 3) throws -> Data {
-        guard let (host, port) = parseHost(rawHost) else { throw Error.badHost(rawHost) }
-
-        var hints = addrinfo(ai_flags: AI_ADDRCONFIG, ai_family: AF_INET, ai_socktype: SOCK_STREAM,
-                             ai_protocol: IPPROTO_TCP, ai_addrlen: 0, ai_canonname: nil, ai_addr: nil, ai_next: nil)
-        var info: UnsafeMutablePointer<addrinfo>?
-        let rc = getaddrinfo(host, String(port), &hints, &info)
-        guard rc == 0, let first = info else { throw Error.resolve(String(cString: gai_strerror(rc))) }
-        defer { freeaddrinfo(info) }
-
-        let fd = socket(first.pointee.ai_family, first.pointee.ai_socktype, first.pointee.ai_protocol)
-        guard fd >= 0 else { throw Error.connect(String(cString: strerror(errno))) }
-        defer { close(fd) }
-        var one: Int32 = 1
-        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
-        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
-
+        guard let (host, port) = RawSocket.parseHost(rawHost) else { throw Error.badHost(rawHost) }
         let deadline = Date().addingTimeInterval(timeout)
-        func remainingMs() -> Int32 { Int32(max(0, deadline.timeIntervalSinceNow * 1000)) }
-        func wait(_ events: Int16) throws {
-            var p = pollfd(fd: fd, events: events, revents: 0)
-            let n = poll(&p, 1, remainingMs())
-            if n == 0 { throw Error.timeout }
-            if n < 0 { throw Error.io(String(cString: strerror(errno))) }
-            if p.revents & Int16(POLLERR | POLLHUP | POLLNVAL) != 0 && p.revents & events == 0 {
-                throw Error.io("socket closed")
+        let sock: RawSocket
+        do { sock = try RawSocket(host: host, port: port, timeout: timeout) } catch let e as RawSocket.Error {
+            switch e {
+            case .resolve(let m): throw Error.resolve(m)
+            case .connect(let m): throw Error.connect(m)
+            case .timeout: throw Error.timeout
+            default: throw Error.io(e.description)
             }
         }
-
-        if connect(fd, first.pointee.ai_addr, first.pointee.ai_addrlen) != 0 {
-            guard errno == EINPROGRESS else { throw Error.connect(String(cString: strerror(errno))) }
-            try wait(Int16(POLLOUT))
-            var err: Int32 = 0
-            var len = socklen_t(MemoryLayout<Int32>.size)
-            getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len)
-            guard err == 0 else { throw Error.connect(String(cString: strerror(err))) }
-        }
+        defer { sock.shutdown() }
 
         var req = "GET \(path) HTTP/1.1\r\nHost: \(host)\r\nConnection: close\r\nAccept: application/json\r\n"
         for (k, v) in headers { req += "\(k): \(v)\r\n" }
         req += "\r\n"
-        var out = Array(req.utf8)
-        while !out.isEmpty {
-            try wait(Int16(POLLOUT))
-            let n = out.withUnsafeBufferPointer { send(fd, $0.baseAddress, $0.count, 0) }
-            if n < 0 { if errno == EAGAIN { continue }; throw Error.io(String(cString: strerror(errno))) }
-            out.removeFirst(n)
+        do {
+            try sock.write(Data(req.utf8), timeout: max(0, deadline.timeIntervalSinceNow))
+            var buf = Data()
+            while true {
+                let chunk = try sock.read(timeout: max(0, deadline.timeIntervalSinceNow))
+                if chunk.isEmpty { break }
+                buf.append(chunk)
+                if let end = headerEnd(buf), let len = contentLength(buf[..<end]), buf.count >= end + len { break }
+                if buf.count > 1_000_000 { throw Error.badResponse }
+            }
+            return try parse(buf)
+        } catch let e as RawSocket.Error {
+            switch e {
+            case .timeout: throw Error.timeout
+            case .closed: throw Error.io("socket closed")
+            default: throw Error.io(e.description)
+            }
         }
-
-        var buf = Data()
-        var chunk = [UInt8](repeating: 0, count: 8192)
-        while true {
-            try wait(Int16(POLLIN))
-            let n = chunk.withUnsafeMutableBufferPointer { recv(fd, $0.baseAddress, $0.count, 0) }
-            if n < 0 { if errno == EAGAIN { continue }; throw Error.io(String(cString: strerror(errno))) }
-            if n == 0 { break }
-            buf.append(contentsOf: chunk[0..<n])
-            if let end = headerEnd(buf), let len = contentLength(buf[..<end]), buf.count >= end + len { break }
-            if buf.count > 1_000_000 { throw Error.badResponse }
-        }
-        return try parse(buf)
     }
 
     static func headerEnd(_ d: Data) -> Int? {

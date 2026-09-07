@@ -2,19 +2,69 @@ import Foundation
 import Network
 import BusyBlockCore
 
-/// Tiny loopback HTTP server the browser extension polls.
-/// GET /state -> BlockState JSON, GET /health -> {"ok":true}.
+/// Tiny loopback HTTP server the browser extension talks to.
+/// GET /state -> BlockState JSON, GET /health -> {"ok":true},
+/// GET /events -> Server-Sent Events: `state` and `frame` messages.
 final class LocalServer {
     private let port: UInt16
     private let stateProvider: () -> BlockState
+    /// Events to send to a freshly connected SSE client (current state, last frame).
+    var initialEvents: () -> [(String, Data)] = { [] }
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "me.negenii.BusyBlock.server")
     private let log: (String) -> Void
+    private var sseClients: [ObjectIdentifier: NWConnection] = [:]
 
     init(port: UInt16, log: @escaping (String) -> Void = { print($0) }, stateProvider: @escaping () -> BlockState) {
         self.port = port
         self.log = log
         self.stateProvider = stateProvider
+    }
+
+    var sseClientCount: Int { queue.sync { sseClients.count } }
+
+    /// Push one event to every SSE client. Safe from any thread.
+    func broadcast(event: String, data: Data) {
+        queue.async { [weak self] in
+            guard let self, !self.sseClients.isEmpty else { return }
+            let payload = Self.sseFrame(event: event, data: data)
+            for (id, conn) in self.sseClients {
+                conn.send(content: payload, completion: .contentProcessed { [weak self] error in
+                    if error != nil { self?.dropSSE(id) }
+                })
+            }
+        }
+    }
+
+    private static func sseFrame(event: String, data: Data) -> Data {
+        Data("event: \(event)\ndata: ".utf8) + data + Data("\n\n".utf8)
+    }
+
+    private func dropSSE(_ id: ObjectIdentifier) {
+        if let c = sseClients.removeValue(forKey: id) { c.cancel() }
+    }
+
+    private func beginSSE(_ conn: NWConnection) {
+        var head = "HTTP/1.1 200 OK\r\n"
+        head += "Content-Type: text/event-stream\r\n"
+        head += "Cache-Control: no-store\r\n"
+        head += "Access-Control-Allow-Origin: *\r\n"
+        head += "Connection: keep-alive\r\n\r\n"
+        var body = Data(head.utf8)
+        body.append(Data("retry: 2000\n\n".utf8))
+        for (event, data) in initialEvents() { body.append(Self.sseFrame(event: event, data: data)) }
+        let id = ObjectIdentifier(conn)
+        sseClients[id] = conn
+        conn.send(content: body, completion: .contentProcessed { [weak self] error in
+            if error != nil { self?.dropSSE(id) }
+        })
+        // A pending receive is how we learn the browser went away.
+        func watch() {
+            conn.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] _, _, isComplete, error in
+                if isComplete || error != nil { self?.dropSSE(id) } else { watch() }
+            }
+        }
+        watch()
     }
 
     func start() throws {
@@ -62,6 +112,11 @@ final class LocalServer {
         let method = parts.count > 0 ? String(parts[0]) : "GET"
         var path = parts.count > 1 ? String(parts[1]) : "/"
         if let q = path.firstIndex(of: "?") { path = String(path[..<q]) }
+
+        if method == "GET" && path == "/events" {
+            beginSSE(conn)
+            return
+        }
 
         var status = "200 OK"
         var body = Data()
