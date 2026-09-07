@@ -23,6 +23,7 @@ final class BlockController: ObservableObject {
     var onHostChange: ((String) -> Void)?
     private var discovering = false
     private var lastDiscovery = Date.distantPast
+    private var everConnected = false
     private let maxFailures = 3
     var onChange: ((BlockState, BlockState) -> Void)?
 
@@ -75,7 +76,7 @@ final class BlockController: ObservableObject {
 
     /// Without the stream the only clock source is /api/time (1 s resolution).
     private func syncClockIfNeeded() async {
-        guard !streamConnected, Date().timeIntervalSince(lastTimeSync) > 300 else { return }
+        guard !streamConnected, failures == 0, Date().timeIntervalSince(lastTimeSync) > 300 else { return }
         lastTimeSync = Date()
         let sent = Date()
         if let ms = try? await client.fetchBarTimeMs() {
@@ -87,6 +88,7 @@ final class BlockController: ObservableObject {
     /// Timer state pushed by the bar over the websocket.
     func ingest(snapshot: BusySnapshot, receivedAt: Date) {
         failures = 0
+        everConnected = true
         lastError = nil
         var decided = BlockDecision.evaluate(snapshot: snapshot, config: config, now: receivedAt)
         decided.endsAt = estimator.update(snapshot: snapshot, macNow: receivedAt)
@@ -101,6 +103,7 @@ final class BlockController: ObservableObject {
             // The bar sampled its clock roughly mid-flight.
             let now = sent.addingTimeInterval(Date().timeIntervalSince(sent) / 2)
             failures = 0
+            everConnected = true
             lastError = nil
             var decided = BlockDecision.evaluate(snapshot: snap, config: config, now: now)
             decided.endsAt = estimator.update(snapshot: snap, macNow: now)
@@ -108,7 +111,9 @@ final class BlockController: ObservableObject {
         } catch {
             failures += 1
             lastError = String(describing: error)
-            if failures >= maxFailures {
+            // A bar that never answered gets searched for right away; one that
+            // just dropped out gets three chances first (USB re-enumeration etc.).
+            if failures >= maxFailures || !everConnected {
                 estimator.reset()
                 apply(BlockDecision.evaluate(snapshot: nil, config: config, now: Date()))
                 await discoverIfNeeded()
