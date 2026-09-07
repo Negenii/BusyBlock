@@ -24,6 +24,7 @@ final class BlockController: ObservableObject {
     private var discovering = false
     private var lastDiscovery = Date.distantPast
     private var everConnected = false
+    private var lastPreferredCheck = Date.distantPast
     private let maxFailures = 3
     var onChange: ((BlockState, BlockState) -> Void)?
 
@@ -95,7 +96,24 @@ final class BlockController: ObservableObject {
         apply(decided)
     }
 
+    /// On a discovered host (say Wi-Fi), keep checking whether the configured
+    /// one (say USB) is back, and return to it when it is.
+    private func returnToConfiguredHostIfBack() async {
+        guard foundVia != .configured, Date().timeIntervalSince(lastPreferredCheck) > 60 else { return }
+        lastPreferredCheck = Date()
+        let configured = config.barHost, token = config.barToken
+        guard !configured.trimmingCharacters(in: .whitespaces).isEmpty, configured != activeHost else { return }
+        let probe = await Task.detached(priority: .utility) { BarLocator.probe(host: configured, token: token) }.value
+        guard probe == .ok else { return }
+        activeHost = configured
+        foundVia = .configured
+        needsToken = false
+        client.use(host: configured)
+        onHostChange?(configured)
+    }
+
     func pollOnce() async {
+        await returnToConfiguredHostIfBack()
         await syncClockIfNeeded()
         do {
             let sent = Date()
@@ -146,7 +164,10 @@ final class BlockController: ObservableObject {
         }
     }
 
-    private func apply(_ new: BlockState) {
+    private func apply(_ incoming: BlockState) {
+        var new = incoming
+        new.host = activeHost
+        new.via = foundVia.rawValue
         let old = state
         guard new != old else { return }
         state = new

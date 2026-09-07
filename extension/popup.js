@@ -9,6 +9,12 @@
   let state = null;
   let feed = null;
 
+  function barWhere(s) {
+    if (!s.host) return "";
+    const via = { usb: "USB", mdns: "mDNS", bonjour: "Bonjour" }[s.via];
+    return " · bar at " + s.host + (via ? " (" + via + ")" : "");
+  }
+
   function render() {
     if (!state) return;
     const mirror = state.showScreen !== false;
@@ -22,10 +28,10 @@
     } else if (state.isBlocking) {
       const rem = formatRemaining(state.endsAt);
       line.textContent = mirror ? "Blocking" : "Blocking" + (rem ? " · " + rem + " left" : "");
-      detail.textContent = state.phase === "rest" ? "Rest phase (blocking enabled for rest)" : "Work phase";
+      detail.textContent = (state.phase === "rest" ? "Rest phase (blocking enabled for rest)" : "Work phase") + barWhere(state);
     } else {
       line.textContent = state.paused ? "Paused" : state.phase === "rest" ? "Rest phase" : "Idle";
-      detail.textContent = "Blocking starts with the bar timer.";
+      detail.textContent = "Blocking starts with the bar timer." + barWhere(state);
     }
     list.innerHTML = "";
     for (const d of state.domains || []) {

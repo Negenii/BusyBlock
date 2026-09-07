@@ -74,7 +74,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         item.button?.title = s.isBlocking ? " " + remaining(s) : ""
 
-        let via = controller.foundVia == .configured ? "" : " · found via \(controller.foundVia.rawValue)"
+        let via: String
+        switch controller.foundVia {
+        case .configured: via = ""
+        case .usb: via = " · found on USB"
+        case .mdns: via = " · found via mDNS"
+        case .bonjour: via = " · found via Bonjour"
+        }
         if controller.needsToken {
             statusItem.title = "Bar needs an API token"
             detailItem.title = "\(controller.activeHost)\(via) · paste the token in Settings"

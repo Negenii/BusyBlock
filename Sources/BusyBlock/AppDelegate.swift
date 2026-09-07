@@ -84,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stream.start()
         menuBar = MenuBarController(controller: controller, store: store) { [weak self] in self?.showSettings() }
         log("BusyBlock started, config at \(store.url.path)")
+        if CommandLine.arguments.contains("--settings") { showSettings() }
     }
 
     func showSettings() {

@@ -94,6 +94,7 @@ do {
     let obj = try JSONSerialization.jsonObject(with: s.wireJSON()) as? [String: Any]
     check(obj?["endsAt"] as? Int == 1_700_000_001_000, "endsAt in ms")
     check(obj?["isBlocking"] as? Bool == true, "isBlocking on wire")
+    check(obj?["via"] as? String == "configured" && obj?["host"] as? String == "", "host/via defaults on wire")
     let off = BlockState.offline(domains: [])
     let offObj = try JSONSerialization.jsonObject(with: off.wireJSON()) as? [String: Any]
     check(offObj?["endsAt"] as? Int == 0, "nil endsAt = 0")

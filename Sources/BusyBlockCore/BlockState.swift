@@ -13,6 +13,9 @@ public struct BlockState: Codable, Equatable {
     public var domains: [String]
     /// Extension should mirror the bar's screen instead of its own countdown.
     public var showScreen: Bool
+    /// Host in use and how it was found ("configured" | "usb" | "mdns" | "bonjour").
+    public var host: String = ""
+    public var via: String = "configured"
 
     public init(isBlocking: Bool, endsAt: Date?, paused: Bool, barConnected: Bool,
                 phase: String, domains: [String], showScreen: Bool = true) {
@@ -40,6 +43,8 @@ public struct BlockState: Codable, Equatable {
             "phase": phase,
             "domains": domains,
             "showScreen": showScreen,
+            "host": host,
+            "via": via,
         ]
         return (try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])) ?? Data("{}".utf8)
     }
