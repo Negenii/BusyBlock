@@ -82,7 +82,7 @@ function applyRules(api, state, port) {
     if (norm(existing) === norm(wanted)) return false;
     await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existing.map((r) => r.id), addRules: wanted });
     return true;
-  }).catch((e) => { console.error("rules update failed", e); return false; });
+  }).catch((e) => { console.error("rules update failed", e); if (typeof globalThis.onRulesError === "function") globalThis.onRulesError(e); return false; });
   return applyRulesQueue;
 }
 

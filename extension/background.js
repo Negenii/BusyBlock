@@ -67,11 +67,25 @@ async function syncNow() {
   }
 }
 
+// Diagnostics to the helper's log (it only accepts extension origins).
+function report(msg) {
+  fetch("http://127.0.0.1:" + port + "/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ msg }) }).catch(() => {});
+}
+let lastReport = "";
+globalThis.onRulesError = (e) => report("rules error: " + (e && e.message || e));
+
 async function applyState(state) {
   const changed = JSON.stringify(state) !== JSON.stringify(lastState);
   lastState = state;
   updateBadge(state);
-  await updateRules(state);
+  try {
+    await updateRules(state);
+    const n = (await api.declarativeNetRequest.getDynamicRules()).length;
+    const line = "rules=" + n + " blocking=" + state.isBlocking + " domains=" + (state.domains || []).length;
+    if (line !== lastReport) { lastReport = line; report(line); }
+  } catch (e) {
+    report("rules error: " + (e && e.message || e));
+  }
   if (changed) {
     api.runtime.sendMessage({ type: "stateUpdated", state }).catch(() => {});
     enforceOpenTabs(state);

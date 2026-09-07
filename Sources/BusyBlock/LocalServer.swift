@@ -195,6 +195,16 @@ final class LocalServer {
         if method == "OPTIONS" {
             // Preflight: only extension pages get to send a POST.
             status = (path == "/domains" && !fromExtension) ? "403 Forbidden" : "204 No Content"
+        } else if method == "POST" && path == "/log" {
+            // Diagnostics from the extension worker (extension origins only).
+            if fromExtension, let obj = try? JSONSerialization.jsonObject(with: reqBody) as? [String: Any] {
+                let ua = Self.header(requestHead, "user-agent") ?? ""
+                let kind = ua.contains("Chrome") ? "chrome" : ua.contains("Safari") ? "safari" : "other"
+                log("[\(kind) worker] \(obj["msg"] as? String ?? "")")
+                body = Data(#"{"ok":true}"#.utf8)
+            } else {
+                status = "403 Forbidden"
+            }
         } else if method == "POST" && path == "/domains" {
             if !fromExtension {
                 status = "403 Forbidden"
