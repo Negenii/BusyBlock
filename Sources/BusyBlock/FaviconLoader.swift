@@ -33,6 +33,9 @@ final class FaviconLoader {
         dir.appendingPathComponent(host.replacingOccurrences(of: "/", with: "_") + ".png")
     }
 
+    /// Whether the DuckDuckGo fallback may be used (Settings → favicons switch).
+    var allowThirdParty = true
+
     /// Calls back on the main queue, possibly synchronously from cache.
     func image(for entry: String, completion: @escaping (NSImage?) -> Void) {
         let host = Self.host(of: entry)
@@ -45,8 +48,9 @@ final class FaviconLoader {
         waiters[host, default: []].append(completion)
         guard !inFlight.contains(host) else { return }
         inFlight.insert(host)
+        let thirdParty = allowThirdParty
         Task { [weak self] in
-            let image = await Self.fetch(host: host, session: self?.session ?? .shared)
+            let image = await Self.fetch(host: host, session: self?.session ?? .shared, thirdParty: thirdParty)
             await MainActor.run {
                 guard let self else { return }
                 self.inFlight.remove(host)
@@ -62,12 +66,9 @@ final class FaviconLoader {
         }
     }
 
-    private static func fetch(host: String, session: URLSession) async -> NSImage? {
-        let candidates = [
-            "https://\(host)/favicon.ico",
-            "https://www.\(host)/favicon.ico",
-            "https://icons.duckduckgo.com/ip3/\(host).ico",
-        ]
+    private static func fetch(host: String, session: URLSession, thirdParty: Bool) async -> NSImage? {
+        var candidates = ["https://\(host)/favicon.ico", "https://www.\(host)/favicon.ico"]
+        if thirdParty { candidates.append("https://icons.duckduckgo.com/ip3/\(host).ico") }
         for c in candidates {
             guard let url = URL(string: c) else { continue }
             if let (data, resp) = try? await session.data(from: url),

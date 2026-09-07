@@ -149,6 +149,14 @@ do {
     check(BarLocator.probe(host: "127.0.0.1:1", token: nil, timeout: 0.5) == .unreachable, "closed port is unreachable")
 }
 
+// MARK: suggestions / origin policy
+check(Suggestions.remaining(given: ["youtube.com", "X.com"]).contains("reddit.com"), "suggestions keep unlisted")
+check(!Suggestions.remaining(given: ["youtube.com", "X.com"]).contains("x.com"), "suggestions drop listed (case-insensitive)")
+check(OriginPolicy.isExtension("chrome-extension://abc"), "chrome extension origin allowed")
+check(OriginPolicy.isExtension("safari-web-extension://ABC-123"), "safari extension origin allowed")
+check(!OriginPolicy.isExtension("https://evil.example"), "web origin rejected")
+check(!OriginPolicy.isExtension(nil), "missing origin rejected")
+
 // MARK: domains
 check(Domain.normalize("https://www.YouTube.com/watch?v=1") == "youtube.com/watch?v=1", "normalize keeps path")
 check(Domain.normalize("Twitter.com:443") == "twitter.com", "normalize strips port")

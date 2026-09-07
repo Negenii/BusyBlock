@@ -8,6 +8,43 @@
   const timeEl = document.getElementById("time");
   let state = null;
   let feed = null;
+  let currentPort = DEFAULT_PORT;
+  let siteHost = "";
+  const siteBox = document.getElementById("site"), siteHostEl = document.getElementById("siteHost"), siteBtn = document.getElementById("siteBtn");
+
+  // Current tab's host → "Block this site while busy" / "Blocked · remove".
+  api.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+    const url = tabs && tabs[0] && tabs[0].url;
+    if (!url || !/^https?:/.test(url)) return;
+    siteHost = new URL(url).hostname.replace(/^www\./, "");
+    siteHostEl.textContent = siteHost;
+    siteBox.hidden = false;
+    renderSite();
+  }).catch(() => {});
+
+  function listed() {
+    if (!state || !siteHost) return null;
+    return (state.domains || []).find((d) => shouldBlock("https://" + siteHost + "/", { isBlocking: true, domains: [d] })) || null;
+  }
+
+  function renderSite() {
+    if (!siteHost) return;
+    const entry = listed();
+    siteBtn.className = entry ? "on" : "";
+    siteBtn.textContent = entry ? "Blocked while busy · remove" : "Block while busy";
+    siteBtn.disabled = !state || state.phase === "offline" && !state.barConnected && !(state.domains || []).length;
+  }
+
+  siteBtn.addEventListener("click", () => {
+    const entry = listed();
+    const body = entry ? { remove: entry } : { add: siteHost };
+    siteBtn.disabled = true;
+    fetch("http://127.0.0.1:" + currentPort + "/domains", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+    }).then((r) => r.json()).then((s) => { state = s; render(); })
+      .catch(() => {})
+      .finally(() => { siteBtn.disabled = false; renderSite(); });
+  });
 
   function barWhere(s) {
     if (!s.host) return "";
@@ -17,6 +54,7 @@
 
   function render() {
     if (!state) return;
+    renderSite();
     const mirror = state.showScreen !== false;
     device.hidden = !mirror;
     timeEl.hidden = mirror || !state.isBlocking;
@@ -45,9 +83,10 @@
     if (feed) feed.close();
     feed = subscribeEvents(port, (s) => { state = s; render(); }, (frame) => { device.classList.remove("idle"); drawFrame(panel, frame); });
   }
-  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { portInput.value = v.port; openFeed(v.port); });
+  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { currentPort = Number(v.port) || DEFAULT_PORT; portInput.value = currentPort; openFeed(currentPort); });
   document.getElementById("save").addEventListener("click", () => {
     const p = Number(portInput.value) || DEFAULT_PORT;
+    currentPort = p;
     api.storage.local.set({ port: p }).then(() => { openFeed(p); setTimeout(refresh, 300); });
   });
 

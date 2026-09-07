@@ -72,6 +72,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         server = LocalServer(port: store.config.localPort, log: log) { [weak self] in
             self?.controller.state ?? .offline(domains: [])
         }
+        server.onDomainChange = { [weak self] add, remove in
+            guard let self else { return Data("{}".utf8) }
+            // Called on the server queue; config is main-actor state.
+            return DispatchQueue.main.sync {
+                var c = self.store.config
+                if let a = add { let d = Domain.normalize(a); if !d.isEmpty, !c.blockedDomains.contains(d) { c.blockedDomains.append(d) } }
+                if let r = remove { let d = Domain.normalize(r); c.blockedDomains.removeAll { $0 == d } }
+                c.blockedDomains.sort()
+                self.store.save(c)
+                var s = self.controller.state
+                s.domains = c.blockedDomains
+                return s.wireJSON()
+            }
+        }
         server.initialEvents = { [weak self] in
             guard let self else { return [] }
             var events = [("state", self.controller.state.wireJSON())]

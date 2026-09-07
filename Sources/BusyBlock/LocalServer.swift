@@ -10,6 +10,8 @@ final class LocalServer {
     private let stateProvider: () -> BlockState
     /// Events to send to a freshly connected SSE client (current state, last frame).
     var initialEvents: () -> [(String, Data)] = { [] }
+    /// `POST /domains` with {"add": host} or {"remove": host}. Returns the new state JSON.
+    var onDomainChange: ((_ add: String?, _ remove: String?) -> Data)?
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "me.negenii.BusyBlock.server")
     private let log: (String) -> Void
@@ -95,7 +97,15 @@ final class LocalServer {
                 if let data { buffer.append(data) }
                 if let range = buffer.range(of: Data("\r\n\r\n".utf8)) {
                     let head = String(decoding: buffer[..<range.lowerBound], as: UTF8.self)
-                    self.respond(conn, requestHead: head)
+                    let wanted = Self.contentLength(head)
+                    let body = buffer[range.upperBound...]
+                    if body.count >= wanted {
+                        self.respond(conn, requestHead: head, body: Data(body.prefix(wanted)))
+                    } else if isComplete || error != nil {
+                        conn.cancel()
+                    } else {
+                        readMore()
+                    }
                 } else if isComplete || error != nil || buffer.count > 65536 {
                     conn.cancel()
                 } else {
@@ -106,12 +116,28 @@ final class LocalServer {
         readMore()
     }
 
-    private func respond(_ conn: NWConnection, requestHead: String) {
+    private static func contentLength(_ head: String) -> Int {
+        header(head, "content-length").flatMap(Int.init) ?? 0
+    }
+
+    private static func header(_ head: String, _ name: String) -> String? {
+        for line in head.split(separator: "\r\n").dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            if line[..<colon].lowercased() == name {
+                return line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return nil
+    }
+
+    private func respond(_ conn: NWConnection, requestHead: String, body reqBody: Data) {
         let line = requestHead.split(separator: "\r\n").first.map(String.init) ?? ""
         let parts = line.split(separator: " ")
         let method = parts.count > 0 ? String(parts[0]) : "GET"
         var path = parts.count > 1 ? String(parts[1]) : "/"
         if let q = path.firstIndex(of: "?") { path = String(path[..<q]) }
+        let origin = Self.header(requestHead, "origin")
+        let fromExtension = OriginPolicy.isExtension(origin)
 
         if method == "GET" && path == "/events" {
             beginSSE(conn)
@@ -121,7 +147,19 @@ final class LocalServer {
         var status = "200 OK"
         var body = Data()
         if method == "OPTIONS" {
-            status = "204 No Content"
+            // Preflight: only extension pages get to send a POST.
+            status = (path == "/domains" && !fromExtension) ? "403 Forbidden" : "204 No Content"
+        } else if method == "POST" && path == "/domains" {
+            if !fromExtension {
+                status = "403 Forbidden"
+                body = Data(#"{"error":"only the browser extension may change the list"}"#.utf8)
+            } else if let obj = try? JSONSerialization.jsonObject(with: reqBody) as? [String: Any],
+                      let handler = onDomainChange {
+                body = handler(obj["add"] as? String, obj["remove"] as? String)
+            } else {
+                status = "400 Bad Request"
+                body = Data(#"{"error":"expected {\"add\":host} or {\"remove\":host}"}"#.utf8)
+            }
         } else if method != "GET" {
             status = "405 Method Not Allowed"
             body = Data(#"{"error":"GET only"}"#.utf8)
@@ -135,8 +173,11 @@ final class LocalServer {
         }
         var head = "HTTP/1.1 \(status)\r\n"
         head += "Content-Type: application/json\r\n"
-        head += "Access-Control-Allow-Origin: *\r\n"
-        head += "Access-Control-Allow-Headers: *\r\n"
+        // Reads are open to any origin; writes echo only an extension origin.
+        head += "Access-Control-Allow-Origin: \(fromExtension ? origin! : "*")\r\n"
+        head += "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+        head += "Access-Control-Allow-Headers: Content-Type\r\n"
+        head += "Vary: Origin\r\n"
         head += "Cache-Control: no-store\r\n"
         head += "Content-Length: \(body.count)\r\n"
         head += "Connection: close\r\n\r\n"

@@ -34,13 +34,15 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     private let domainsTable = NSTableView()
     private let domainField = NSTextField()
     private var domains: [String] = []
+    private let pills = FlowView()
+    private let faviconCheck = NSButton(checkboxWithTitle: "Fetch missing favicons from DuckDuckGo (sends the domain to them)", target: nil, action: nil)
 
     private let saveDebounce = PassthroughSubject<Void, Never>()
 
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 760),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 820),
                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         w.title = "BusyBlock"
         w.isReleasedWhenClosed = false
@@ -113,6 +115,14 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         let domainRow = NSStackView(views: [domainField, addBtn])
         domainRow.orientation = .horizontal
         root.addArrangedSubview(domainRow)
+        let pillsHint = NSTextField(labelWithString: "Usual suspects, one click to add:")
+        pillsHint.textColor = .secondaryLabelColor
+        pillsHint.font = .systemFont(ofSize: 11)
+        root.addArrangedSubview(pillsHint)
+        root.addArrangedSubview(pills)
+        faviconCheck.target = self
+        faviconCheck.action = #selector(toggled)
+        root.addArrangedSubview(faviconCheck)
 
         let hint = NSTextField(wrappingLabelWithString: "Changes apply immediately. Select an item and press Delete to remove it. Config file: \(store.url.path)")
         hint.textColor = .tertiaryLabelColor
@@ -217,6 +227,9 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         screenCheck.state = c.showScreenInBrowser ? .on : .off
         if apps != c.blockedApps { apps = c.blockedApps; appsTable.reloadData() }
         if domains != c.blockedDomains { domains = c.blockedDomains; domainsTable.reloadData() }
+        faviconCheck.state = c.faviconFallback ? .on : .off
+        FaviconLoader.shared.allowThirdParty = c.faviconFallback
+        rebuildPills()
         refreshStatus()
     }
 
@@ -229,6 +242,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         c.autoDiscover = discoverCheck.state == .on
         c.blockDuringRest = restCheck.state == .on
         c.showScreenInBrowser = screenCheck.state == .on
+        c.faviconFallback = faviconCheck.state == .on
         c.blockedApps = apps
         c.blockedDomains = domains
         store.save(c)
@@ -299,6 +313,31 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         saveDebounce.send()
     }
 
+    private func rebuildPills() {
+        pills.subviews.forEach { $0.removeFromSuperview() }
+        for d in Suggestions.remaining(given: domains) {
+            let b = NSButton(title: d, target: self, action: #selector(pillTapped(_:)))
+            b.bezelStyle = .badge
+            b.controlSize = .small
+            b.font = .systemFont(ofSize: 11)
+            b.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
+            b.imagePosition = .imageLeading
+            b.toolTip = "Block \(d) while the bar is busy"
+            pills.addSubview(b)
+        }
+        pills.needsLayout = true
+    }
+
+    @objc private func pillTapped(_ sender: NSButton) {
+        let d = Domain.normalize(sender.title)
+        guard !d.isEmpty, !domains.contains(d) else { return }
+        domains.append(d)
+        domains.sort()
+        domainsTable.reloadData()
+        rebuildPills()
+        saveDebounce.send()
+    }
+
     @objc private func addDomain() {
         let d = Domain.normalize(domainField.stringValue)
         guard !d.isEmpty else { NSSound.beep(); return }
@@ -307,6 +346,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         domains.append(d)
         domains.sort()
         domainsTable.reloadData()
+        rebuildPills()
         saveDebounce.send()
     }
 
@@ -316,6 +356,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         if table === appsTable { apps = apps.enumerated().filter { !rows.contains($0.offset) }.map(\.element) }
         else { domains = domains.enumerated().filter { !rows.contains($0.offset) }.map(\.element) }
         table.reloadData()
+        if table === domainsTable { rebuildPills() }
         saveDebounce.send()
     }
 
@@ -357,7 +398,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         }
         cell.onRemove = { [weak self] in
             guard let self, let i = self.domains.firstIndex(of: d) else { return }
-            self.domains.remove(at: i); self.domainsTable.reloadData(); self.saveDebounce.send()
+            self.domains.remove(at: i); self.domainsTable.reloadData(); self.rebuildPills(); self.saveDebounce.send()
         }
         return cell
     }
@@ -511,6 +552,36 @@ final class DropZoneView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) { onClick?() }
+}
+
+/// Wraps its subviews into rows, like tags. Height follows content.
+final class FlowView: NSView {
+    var spacing: CGFloat = 6
+    private var heightConstraint: NSLayoutConstraint?
+
+    override var isFlipped: Bool { true }
+
+    override func layout() {
+        super.layout()
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        let width = bounds.width
+        for v in subviews {
+            let sz = v.fittingSize
+            if x + sz.width > width, x > 0 { x = 0; y += rowH + spacing; rowH = 0 }
+            v.frame = NSRect(x: x, y: y, width: sz.width, height: sz.height)
+            x += sz.width + spacing
+            rowH = max(rowH, sz.height)
+        }
+        let total = subviews.isEmpty ? 0 : y + rowH
+        if heightConstraint == nil {
+            heightConstraint = heightAnchor.constraint(equalToConstant: total)
+            heightConstraint?.isActive = true
+        } else if heightConstraint?.constant != total {
+            heightConstraint?.constant = total
+        }
+    }
+
+    override func didAddSubview(_ subview: NSView) { needsLayout = true }
 }
 
 /// Coloured status dot.
