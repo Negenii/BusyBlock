@@ -11,6 +11,7 @@
   const subEl = document.getElementById("sub");
   const card = document.getElementById("card");
   const panel = document.getElementById("panel");
+  const device = document.getElementById("device");
 
   function render() {
     if (!state) return;
@@ -22,16 +23,21 @@
       if (original && !leaving) { leaving = true; setTimeout(() => location.replace(original), 800); }
       return;
     }
+    // With the bar's own screen on show there is no second timer to disagree with it.
+    const mirror = state.showScreen !== false;
+    device.hidden = !mirror;
+    timeEl.hidden = mirror;
     const rem = formatRemaining(state.endsAt);
     timeEl.textContent = rem || "∞";
-    subEl.textContent = state.phase === "rest" ? "rest phase, still blocked" : (rem ? "left on the BUSY Bar" : "no time limit on the bar");
+    if (mirror) subEl.textContent = state.phase === "rest" ? "rest phase, still blocked" : "until the bar timer ends";
+    else subEl.textContent = state.phase === "rest" ? "rest phase, still blocked" : (rem ? "left on the BUSY Bar" : "no time limit on the bar");
   }
 
   function setState(s) { state = s; render(); }
 
   // Live feed from the helper: instant state changes and the bar's own screen.
   api.storage.local.get({ port: DEFAULT_PORT }).then((v) => {
-    subscribeEvents(v.port, setState, (frame) => { panel.classList.remove("idle"); drawFrame(panel, frame); });
+    subscribeEvents(v.port, setState, (frame) => { device.classList.remove("idle"); drawFrame(panel, frame); });
   });
 
   // Fallback through the worker (also confirms rules are in place).

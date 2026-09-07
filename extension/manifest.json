@@ -43,7 +43,8 @@
         "shared.js",
         "led.js",
         "shared.css",
-        "icons/*"
+        "icons/*",
+        "brand/*"
       ],
       "matches": [
         "<all_urls>"

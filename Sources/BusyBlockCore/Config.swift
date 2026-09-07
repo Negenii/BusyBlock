@@ -8,11 +8,14 @@ public struct Config: Codable, Equatable {
     public var blockDuringRest: Bool
     public var blockedApps: [String]
     public var blockedDomains: [String]
+    /// Mirror the bar's front panel in the extension (block page + popup).
+    /// When off, the extension shows its own countdown instead.
+    public var showScreenInBrowser: Bool
 
     public init(barHost: String = "10.0.4.20", barToken: String? = nil,
                 pollIntervalSec: Double = 2, localPort: UInt16 = 48321,
                 blockDuringRest: Bool = false, blockedApps: [String] = [],
-                blockedDomains: [String] = []) {
+                blockedDomains: [String] = [], showScreenInBrowser: Bool = true) {
         self.barHost = barHost
         self.barToken = barToken
         self.pollIntervalSec = pollIntervalSec
@@ -20,6 +23,7 @@ public struct Config: Codable, Equatable {
         self.blockDuringRest = blockDuringRest
         self.blockedApps = blockedApps
         self.blockedDomains = blockedDomains
+        self.showScreenInBrowser = showScreenInBrowser
     }
 
     public static let defaults = Config()
@@ -49,6 +53,7 @@ public struct Config: Codable, Equatable {
         if let v = d.localPort { c.localPort = v }
         if let v = d.blockDuringRest { c.blockDuringRest = v }
         if let v = d.blockedApps { c.blockedApps = v }
+        if let v = d.showScreenInBrowser { c.showScreenInBrowser = v }
         if let v = d.blockedDomains {
             c.blockedDomains = Array(Set(v.map(Domain.normalize).filter { !$0.isEmpty })).sorted()
         }
@@ -78,5 +83,6 @@ public struct Config: Codable, Equatable {
         var blockDuringRest: Bool?
         var blockedApps: [String]?
         var blockedDomains: [String]?
+        var showScreenInBrowser: Bool?
     }
 }

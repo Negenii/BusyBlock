@@ -98,6 +98,12 @@ do {
     check(back.blockedDomains == ["youtube.com"], "domains normalised on load")
     let partial = try Config.decode(Data(#"{"barHost":"192.168.1.5","blockedDomains":["https://www.X.com/","bad"]}"#.utf8))
     check(partial.barHost == "192.168.1.5" && partial.localPort == 48321 && partial.blockedDomains == ["x.com"], "partial config gets defaults")
+    check(partial.showScreenInBrowser == true, "showScreenInBrowser defaults on")
+    let noScreen = try Config.decode(Data(#"{"showScreenInBrowser":false}"#.utf8))
+    let noScreenState = BlockDecision.evaluate(snapshot: BusySnapshot(kind: .simple, timeLeftMs: 1000), config: noScreen, now: now)
+    check(!noScreenState.showScreen, "showScreen follows config")
+    let noScreenWire = try JSONSerialization.jsonObject(with: noScreenState.wireJSON()) as? [String: Any]
+    check(noScreenWire?["showScreen"] as? Bool == false, "showScreen on wire")
     let created = Config.loadOrCreate(at: tmp.deletingLastPathComponent().appendingPathComponent("new.json"))
     check(created == .defaults, "loadOrCreate writes defaults")
     try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent())

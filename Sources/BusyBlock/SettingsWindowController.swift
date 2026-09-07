@@ -14,6 +14,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     private let tokenField = NSTextField()
     private let intervalPopup = NSPopUpButton()
     private let restCheck = NSButton(checkboxWithTitle: "Block during rest phase too", target: nil, action: nil)
+    private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser (otherwise a plain countdown)", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
     private let appsTable = NSTableView()
     private let bundleField = NSTextField()
@@ -24,7 +25,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 660),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 690),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "BusyBlock Settings"
         w.isReleasedWhenClosed = false
@@ -59,6 +60,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         for s in [1, 2, 3, 5, 10] { intervalPopup.addItem(withTitle: "\(s) s") }
         root.addArrangedSubview(row("Poll every", intervalPopup))
         root.addArrangedSubview(restCheck)
+        root.addArrangedSubview(screenCheck)
         statusLabel.textColor = .secondaryLabelColor
         root.addArrangedSubview(row("Status", statusLabel))
 
@@ -160,6 +162,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         let idx = [1, 2, 3, 5, 10].firstIndex(of: Int(c.pollIntervalSec.rounded())) ?? 1
         intervalPopup.selectItem(at: idx)
         restCheck.state = c.blockDuringRest ? .on : .off
+        screenCheck.state = c.showScreenInBrowser ? .on : .off
         apps = c.blockedApps
         appsTable.reloadData()
         domainsView.string = c.blockedDomains.joined(separator: "\n")
@@ -182,6 +185,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         c.barToken = tokenField.stringValue.isEmpty ? nil : tokenField.stringValue
         c.pollIntervalSec = Double([1, 2, 3, 5, 10][max(0, intervalPopup.indexOfSelectedItem)])
         c.blockDuringRest = restCheck.state == .on
+        c.showScreenInBrowser = screenCheck.state == .on
         c.blockedApps = apps
         c.blockedDomains = Array(Set(domainsView.string.split(whereSeparator: \.isNewline)
             .map { Domain.normalize(String($0)) }.filter { !$0.isEmpty })).sorted()

@@ -21,7 +21,7 @@ final class BlockController: ObservableObject {
     init(config: Config) {
         self.config = config
         self.client = BarClient(config: config)
-        self.state = .offline(domains: config.blockedDomains)
+        self.state = .offline(domains: config.blockedDomains, showScreen: config.showScreenInBrowser)
     }
 
     func start() {
@@ -45,6 +45,7 @@ final class BlockController: ObservableObject {
         // Re-evaluate with the new lists right away.
         var s = state
         s.domains = new.blockedDomains
+        s.showScreen = new.showScreenInBrowser
         apply(s)
         Task { await pollOnce() }
     }

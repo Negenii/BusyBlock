@@ -11,20 +11,23 @@ public struct BlockState: Codable, Equatable {
     public var phase: String
     /// Configured domains; only enforced while `isBlocking`.
     public var domains: [String]
+    /// Extension should mirror the bar's screen instead of its own countdown.
+    public var showScreen: Bool
 
     public init(isBlocking: Bool, endsAt: Date?, paused: Bool, barConnected: Bool,
-                phase: String, domains: [String]) {
+                phase: String, domains: [String], showScreen: Bool = true) {
         self.isBlocking = isBlocking
         self.endsAt = endsAt
         self.paused = paused
         self.barConnected = barConnected
         self.phase = phase
         self.domains = domains
+        self.showScreen = showScreen
     }
 
-    public static func offline(domains: [String]) -> BlockState {
+    public static func offline(domains: [String], showScreen: Bool = true) -> BlockState {
         BlockState(isBlocking: false, endsAt: nil, paused: false, barConnected: false,
-                   phase: "offline", domains: domains)
+                   phase: "offline", domains: domains, showScreen: showScreen)
     }
 
     /// Wire format for the extension: `endsAt` in ms since epoch, 0 when nil.
@@ -36,6 +39,7 @@ public struct BlockState: Codable, Equatable {
             "barConnected": barConnected,
             "phase": phase,
             "domains": domains,
+            "showScreen": showScreen,
         ]
         return (try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])) ?? Data("{}".utf8)
     }
