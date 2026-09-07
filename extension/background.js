@@ -13,6 +13,7 @@ let lastState = null;
 let port = DEFAULT_PORT;
 let fetchSeq = 0;          // sync() calls overlap (interval, alarm, content scripts); ignore stale responses
 let inflight = null;       // the one request in flight (declared before schedule() runs below)
+let appliedKey = null;     // last [blocking, domains, port] written to the browser's rules
 const IS_SAFARI = api.runtime.getURL("").startsWith("safari-web-extension://");
 api.runtime.onInstalled.addListener(schedule);
 api.runtime.onStartup.addListener(schedule);
