@@ -23,12 +23,14 @@
   const panel = document.getElementById("panel");
   const device = document.getElementById("device");
 
+  const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+
   function render() {
     if (!state) return;
     if (!state.isBlocking) {
       card.classList.add("done");
-      timeEl.textContent = "";
-      subEl.textContent = original ? "Timer's done, taking you back…" : "Timer's done.";
+      setText(timeEl, "");
+      setText(subEl, original ? "Timer's done, taking you back…" : "Timer's done.");
       if (original && !leaving) { leaving = true; setTimeout(() => location.replace(original), 800); }
       return;
     }
@@ -37,8 +39,8 @@
     device.hidden = !mirror;
     timeEl.hidden = mirror;
     const rem = formatRemaining(state.endsAt);
-    timeEl.textContent = rem || "∞";
-    subEl.textContent = state.phase === "rest" ? "You're on a BUSY rest" : "You're BUSY";
+    setText(timeEl, rem || "∞");
+    setText(subEl, state.phase === "rest" ? "You're on a BUSY rest" : "You're BUSY");
   }
 
   function setState(s) { state = s; render(); }
@@ -47,7 +49,6 @@
   // connections per host (~6), so background tabs must not hold one. Until a
   // frame arrives, the panel shows the countdown in LEDs drawn here.
   let feed = null, port = DEFAULT_PORT, lastFrameAt = 0, lastTint = 0;
-  const feedEl = document.getElementById("feed");
 
   function connectFeed() {
     if (feed || document.visibilityState !== "visible") return;
@@ -61,13 +62,12 @@
         const c = dominantColor(frame);
         if (c) document.documentElement.style.setProperty("--glow", c.join(", "));
       }
-    }, (text) => { feedEl.textContent = "helper feed: " + text; });
+    });
   }
 
   function disconnectFeed() {
     if (feed) { feed.close(); feed = null; }
     lastFrameAt = 0;
-    feedEl.textContent = "helper feed: paused (tab in background)";
   }
 
   // No live frame for 2 s → draw the clock ourselves on the same panel.
@@ -79,6 +79,7 @@
   }
 
   document.addEventListener("visibilitychange", () => {
+    document.documentElement.classList.toggle("hidden-tab", document.visibilityState !== "visible");
     if (document.visibilityState === "visible") { drawClockIfStale(); connectFeed(); refresh(); }
     else disconnectFeed();
   });
@@ -91,6 +92,22 @@
     api.runtime.sendMessage({ type: "getState" }).then(setState).catch(() => {});
   }
   api.runtime.onMessage.addListener((m) => { if (m && m.type === "stateUpdated") setState(m.state); });
+  // Background glow: three blobs drifting on slow sine paths, updated 8 times a
+  // second from JS. A CSS animation would make the compositor redraw these big
+  // layers at 60 fps and keep the GPU busy for a page that is mostly static.
+  const blobs = Array.from(document.querySelectorAll(".blob"));
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function moveBlobs() {
+    if (reduceMotion || document.visibilityState !== "visible") return;
+    const t = Date.now() / 1000;
+    const vw = innerWidth / 100, vh = innerHeight / 100;
+    blobs[0].style.transform = "translate(" + (14 * vw * (1 + Math.sin(t / 13))) + "px, " + (9 * vh * (1 + Math.sin(t / 9))) + "px) scale(" + (1.1 + 0.15 * Math.sin(t / 11)) + ")";
+    blobs[1].style.transform = "translate(" + (-13 * vw * (1 + Math.cos(t / 16))) + "px, " + (-11 * vh * (1 + Math.sin(t / 12))) + "px) scale(" + (1 + 0.1 * Math.cos(t / 10)) + ")";
+    blobs[2].style.transform = "translate(" + (16 * vw * Math.sin(t / 11)) + "px, " + (14 * vh * Math.cos(t / 14)) + "px)";
+  }
+  moveBlobs();
+  setInterval(moveBlobs, 125);
+
   refresh();
   setInterval(() => { render(); drawClockIfStale(); }, 1000);
   setInterval(refresh, 10000);
