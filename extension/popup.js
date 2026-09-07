@@ -1,7 +1,7 @@
 (function () {
   const api = typeof browser !== "undefined" ? browser : chrome;
   const dot = document.getElementById("dot"), line = document.getElementById("line");
-  const detail = document.getElementById("detail"), list = document.getElementById("domains");
+  const detail = document.getElementById("detail");
   const portInput = document.getElementById("port");
   const panel = document.getElementById("panel");
   const device = document.getElementById("device");
@@ -75,12 +75,6 @@
     } else {
       line.textContent = state.paused ? "Paused" : state.phase === "rest" ? "Rest phase" : "Idle";
       detail.textContent = "Blocking starts with the bar timer." + barWhere(state);
-    }
-    list.innerHTML = "";
-    for (const d of state.domains || []) {
-      const li = document.createElement("li");
-      li.textContent = d;
-      list.appendChild(li);
     }
   }
 

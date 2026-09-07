@@ -12,8 +12,6 @@
     .dot { width: 10px; height: 10px; border-radius: 50%; background: #9a9a96; }
     .dot.on { background: var(--accent); }
     .dot.idle { background: #30a46c; }
-    ul { margin: 10px 0 0; padding: 0; list-style: none; max-height: 160px; overflow: auto; font-size: 13px; }
-    li { padding: 3px 0; border-top: 1px solid var(--line); }
     .row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; }
     input { width: 70px; font: inherit; padding: 2px 4px; }
     .site { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; }
@@ -35,7 +33,6 @@
     <span class="host mono" id="siteHost"></span>
     <button id="siteBtn"></button>
   </div>
-  <ul id="domains"></ul>
   <div class="row muted"><span>Helper port</span><input id="port" type="number" min="1024" max="65535"><button id="save">Save</button></div>
   <script src="shared.js"></script>
   <script src="led.js"></script>
