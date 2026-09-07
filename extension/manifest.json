@@ -41,6 +41,7 @@
         "blocked.html",
         "blocked.js",
         "shared.js",
+        "led.js",
         "shared.css",
         "icons/*"
       ],

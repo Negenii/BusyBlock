@@ -49,6 +49,24 @@ final class BlockController: ObservableObject {
         Task { await pollOnce() }
     }
 
+    /// Bar clock reading (ms) from the websocket envelope or /api/time.
+    func calibrate(barMs: Int, receivedAt: Date, resolution: TimeInterval = 0.001) {
+        estimator.observeBarClock(barMs: barMs, macNow: receivedAt, resolution: resolution)
+    }
+
+    private var lastTimeSync = Date.distantPast
+
+    /// Without the stream the only clock source is /api/time (1 s resolution).
+    private func syncClockIfNeeded() async {
+        guard !streamConnected, Date().timeIntervalSince(lastTimeSync) > 300 else { return }
+        lastTimeSync = Date()
+        let sent = Date()
+        if let ms = try? await client.fetchBarTimeMs() {
+            let mid = sent.addingTimeInterval(Date().timeIntervalSince(sent) / 2)
+            calibrate(barMs: ms, receivedAt: mid, resolution: 1)
+        }
+    }
+
     /// Timer state pushed by the bar over the websocket.
     func ingest(snapshot: BusySnapshot, receivedAt: Date) {
         failures = 0
@@ -59,6 +77,7 @@ final class BlockController: ObservableObject {
     }
 
     func pollOnce() async {
+        await syncClockIfNeeded()
         do {
             let sent = Date()
             let snap = try await client.fetchSnapshot()

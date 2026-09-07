@@ -7,7 +7,7 @@ if (typeof shouldBlock === "undefined" && typeof importScripts === "function") i
 const api = typeof browser !== "undefined" ? browser : chrome;
 const SYNC_ALARM = "busyblock-sync";
 const ALARM_MINUTES = 0.5;      // Chrome's floor; setInterval covers the gap while awake
-const LIVE_POLL_MS = 3000;
+const LIVE_POLL_MS = 1000;   // loopback; the helper itself reacts to bar events instantly
 
 let lastState = null;
 let port = DEFAULT_PORT;

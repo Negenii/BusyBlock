@@ -194,6 +194,24 @@ do {
     _ = e.update(snapshot: snap(1_200_000, ts: jumpTs, interval: 1), macNow: now.addingTimeInterval(200))
     check(abs(e.clockOffset! - (-120)) < 0.001, "clock jump resets offset")
 
+    // Helper starts 86 s into a run: the only snapshot is stale. Naively the
+    // end lands 86 s late; a live clock reading from the stream fixes it.
+    var c = EndsAtEstimator()
+    let staleTs = Int((mac0 - 86) * 1000)          // captured 86 s ago, bar clock == mac clock
+    let naive = c.update(snapshot: snap(1_380_000, ts: staleTs), macNow: now)
+    check(abs(naive!.timeIntervalSince1970 - (mac0 + 1380)) < 0.001, "uncalibrated: end = now + left (86 s late)")
+    c.observeBarClock(barMs: Int((mac0 + 0.2) * 1000), macNow: now.addingTimeInterval(0.205))
+    check(c.calibrated && abs(c.clockOffset! - 0.005) < 0.001, "envelope timestamp calibrates offset")
+    let fixed = c.update(snapshot: snap(1_380_000, ts: staleTs), macNow: now.addingTimeInterval(0.3))
+    check(abs(fixed!.timeIntervalSince1970 - (mac0 - 86 + 1380 + 0.005)) < 0.01, "calibrated: end = capture + left")
+    // Later stale sightings must not move the offset back.
+    _ = c.update(snapshot: snap(1_380_000, ts: staleTs), macNow: now.addingTimeInterval(30))
+    check(abs(c.clockOffset! - 0.005) < 0.001, "stale snapshot cannot recalibrate")
+    // Whole-second /api/time reading: half a second of resolution is credited.
+    var t2 = EndsAtEstimator()
+    t2.observeBarClock(barMs: Int(mac0) * 1000, macNow: now, resolution: 1)
+    check(abs(t2.clockOffset! - (now.timeIntervalSince1970 - Double(Int(mac0)) - 0.5)) < 0.001, "second-resolution reading")
+
     // No timestamp at all: falls back to poll time.
     var f = EndsAtEstimator()
     let plain = f.update(snapshot: BusySnapshot(kind: .simple, timeLeftMs: 5000), macNow: now)

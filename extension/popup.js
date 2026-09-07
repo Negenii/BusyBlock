@@ -3,7 +3,9 @@
   const dot = document.getElementById("dot"), line = document.getElementById("line");
   const detail = document.getElementById("detail"), list = document.getElementById("domains");
   const portInput = document.getElementById("port");
+  const panel = document.getElementById("panel");
   let state = null;
+  let feed = null;
 
   function render() {
     if (!state) return;
@@ -27,10 +29,14 @@
     }
   }
 
-  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { portInput.value = v.port; });
+  function openFeed(port) {
+    if (feed) feed.close();
+    feed = subscribeEvents(port, (s) => { state = s; render(); }, (frame) => { panel.classList.remove("idle"); drawFrame(panel, frame); });
+  }
+  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { portInput.value = v.port; openFeed(v.port); });
   document.getElementById("save").addEventListener("click", () => {
     const p = Number(portInput.value) || DEFAULT_PORT;
-    api.storage.local.set({ port: p }).then(() => setTimeout(refresh, 300));
+    api.storage.local.set({ port: p }).then(() => { openFeed(p); setTimeout(refresh, 300); });
   });
 
   function refresh() {
