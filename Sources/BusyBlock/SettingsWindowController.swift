@@ -347,8 +347,14 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         let d = domains[row]
         let cell = ItemCell.dequeue(tableView, id: "domainCell", compact: true)
         cell.icon.image = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
+        cell.icon.contentTintColor = .secondaryLabelColor
         cell.title.stringValue = d
         cell.subtitle.stringValue = ""
+        FaviconLoader.shared.image(for: d) { [weak cell] img in
+            // The cell may have been recycled for another domain by now.
+            guard let cell, cell.title.stringValue == d, let img else { return }
+            cell.icon.image = img
+        }
         cell.onRemove = { [weak self] in
             guard let self, let i = self.domains.firstIndex(of: d) else { return }
             self.domains.remove(at: i); self.domainsTable.reloadData(); self.saveDebounce.send()
