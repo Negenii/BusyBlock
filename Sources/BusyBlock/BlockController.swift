@@ -12,7 +12,7 @@ final class BlockController: ObservableObject {
     private let client: BarClient
     private var loop: Task<Void, Never>?
     private var failures = 0
-    private var endsAtTracker = EndsAtTracker()
+    private var estimator = EndsAtEstimator()
     private let maxFailures = 3
     var onChange: ((BlockState, BlockState) -> Void)?
 
@@ -56,13 +56,13 @@ final class BlockController: ObservableObject {
             failures = 0
             lastError = nil
             var decided = BlockDecision.evaluate(snapshot: snap, config: config, now: now)
-            decided.endsAt = endsAtTracker.update(candidate: decided.endsAt, phaseKey: snap.phaseKey)
+            decided.endsAt = estimator.update(snapshot: snap, macNow: now)
             apply(decided)
         } catch {
             failures += 1
             lastError = String(describing: error)
             if failures >= maxFailures {
-                endsAtTracker.reset()
+                estimator.reset()
                 apply(BlockDecision.evaluate(snapshot: nil, config: config, now: Date()))
             }
         }

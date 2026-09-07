@@ -17,14 +17,20 @@ public struct BusySnapshot: Equatable {
     public var currentInterval: Int?
     /// INTERVAL only.
     public var currentIntervalTimeLeftMs: Int?
+    /// Bar clock (ms since epoch) when this snapshot was captured. Stock firmware
+    /// serves a cached snapshot that only refreshes on user actions, so this is
+    /// the reference point for the remaining time, not the poll moment.
+    public var timestampMs: Int?
 
     public init(kind: Kind, isPaused: Bool = false, timeLeftMs: Int? = nil,
-                currentInterval: Int? = nil, currentIntervalTimeLeftMs: Int? = nil) {
+                currentInterval: Int? = nil, currentIntervalTimeLeftMs: Int? = nil,
+                timestampMs: Int? = nil) {
         self.kind = kind
         self.isPaused = isPaused
         self.timeLeftMs = timeLeftMs
         self.currentInterval = currentInterval
         self.currentIntervalTimeLeftMs = currentIntervalTimeLeftMs
+        self.timestampMs = timestampMs
     }
 
     public var isRestPhase: Bool {
@@ -42,7 +48,7 @@ public struct BusySnapshot: Equatable {
 }
 
 extension BusySnapshot: Decodable {
-    private enum Envelope: String, CodingKey { case snapshot }
+    private enum Envelope: String, CodingKey { case snapshot, timestampMs = "snapshot_timestamp_ms" }
     private enum Keys: String, CodingKey {
         case type
         case isPaused = "is_paused"
@@ -57,8 +63,10 @@ extension BusySnapshot: Decodable {
         if let env = try? decoder.container(keyedBy: Envelope.self),
            env.contains(.snapshot) {
             inner = try env.nestedContainer(keyedBy: Keys.self, forKey: .snapshot)
+            timestampMs = try env.decodeIfPresent(Int.self, forKey: .timestampMs)
         } else {
             inner = try decoder.container(keyedBy: Keys.self)
+            timestampMs = nil
         }
         kind = try inner.decode(Kind.self, forKey: .type)
         isPaused = try inner.decodeIfPresent(Bool.self, forKey: .isPaused) ?? false

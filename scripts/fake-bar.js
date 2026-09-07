@@ -7,6 +7,11 @@ const http = require("node:http");
 const port = Number(process.argv[2] || 8090);
 let scenario = process.argv[3] || "idle";
 let startedAt = Date.now();
+// Stock firmware serves a cached snapshot that only refreshes on user actions
+// (start, pause, phase change). Pass --live to emulate the VeryBUSY patch that
+// captures live state on every request.
+const live = process.argv.includes("--live");
+let cached = null;
 const WORK = 25 * 60 * 1000, REST = 5 * 60 * 1000;
 const secs = (ms) => Math.max(0, Math.floor(ms / 1000) * 1000); // firmware reports whole seconds
 const settings = { theme: "on_air", show_work_phase_only: false, trigger_smart_home: true };
@@ -28,13 +33,14 @@ function snapshot() {
 http.createServer((req, res) => {
   const json = (code, obj) => { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify(obj)); };
   if (req.method === "GET" && req.url === "/api/busy/snapshot") {
-    return json(200, { snapshot: { ...snapshot(), busy_bar_settings: settings }, snapshot_timestamp_ms: Date.now() });
+    if (live || !cached) cached = { snapshot: { ...snapshot(), busy_bar_settings: settings }, snapshot_timestamp_ms: Date.now() };
+    return json(200, cached);
   }
   if (req.method === "PUT" && req.url === "/scenario") {
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {
-      try { scenario = JSON.parse(body).name; startedAt = Date.now(); json(200, { ok: true, scenario }); }
+      try { scenario = JSON.parse(body).name; startedAt = Date.now(); cached = null; json(200, { ok: true, scenario }); }
       catch { json(400, { error: "bad json" }); }
     });
     return;

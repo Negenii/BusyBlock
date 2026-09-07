@@ -16,6 +16,7 @@ do {
     let json = #"{"snapshot":{"type":"SIMPLE","card_id":"0","time_left_ms":9000,"is_paused":false,"busy_bar_settings":{"theme":"on_air","show_work_phase_only":false,"trigger_smart_home":true}},"snapshot_timestamp_ms":1}"#
     let s = try BusySnapshot.decode(Data(json.utf8))
     check(s.kind == .simple && s.timeLeftMs == 9000 && !s.isPaused, "decode SIMPLE")
+    check(s.timestampMs == 1, "decode snapshot_timestamp_ms")
     check(s.phaseTimeLeftMs == 9000, "SIMPLE phase time")
 
     let interval = #"{"snapshot":{"type":"INTERVAL","card_id":"0","current_interval":1,"current_interval_time_total_ms":60000,"current_interval_time_left_ms":42690,"is_paused":true,"interval_settings":{"type":"INTERVAL","interval_work_ms":120000,"interval_rest_ms":60000,"interval_work_cycles_count":3,"is_autostart_enabled":false}}}"#
@@ -127,6 +128,71 @@ do {
 
     let s = BusySnapshot(kind: .interval, isPaused: false, currentInterval: 3)
     check(s.phaseKey == "INTERVAL|3|false", "snapshot phaseKey")
+}
+
+// MARK: endsAt estimator (stock firmware serves a frozen snapshot)
+do {
+    var e = EndsAtEstimator()
+    let mac0 = now.timeIntervalSince1970
+    let barTs = Int((mac0 - 0.5) * 1000)      // captured 0.5 s before our first poll, bar clock == mac clock
+    func snap(_ left: Int, ts: Int, paused: Bool = false, interval: Int = 0) -> BusySnapshot {
+        BusySnapshot(kind: .interval, isPaused: paused, currentInterval: interval,
+                     currentIntervalTimeLeftMs: left, timestampMs: ts)
+    }
+    // Ten polls of the same frozen snapshot over 20 s: the end must not move.
+    var ends: [Date?] = []
+    for i in 0..<10 {
+        ends.append(e.update(snapshot: snap(1_380_000, ts: barTs), macNow: now.addingTimeInterval(Double(i) * 2)))
+    }
+    check(Set(ends.map { $0?.timeIntervalSince1970 ?? 0 }).count == 1, "frozen snapshot gives one endsAt")
+    check(abs(ends[0]!.timeIntervalSince1970 - (mac0 + 1380)) < 0.001, "first sighting: end = now + left")
+
+    // Pause 19 s in: fresh snapshot, paused → still meaningful end for display.
+    let pauseTs = Int((mac0 + 18.5) * 1000)
+    let paused = e.update(snapshot: snap(1_361_000, ts: pauseTs, paused: true), macNow: now.addingTimeInterval(19.5))
+    check(paused != nil, "paused snapshot still yields an end")
+
+    // Resume: polled 0.1 s after capture → offset improves from 0.5 to 0.1.
+    let resumeTs = Int((mac0 + 40) * 1000)
+    let resumed = e.update(snapshot: snap(1_361_000, ts: resumeTs), macNow: now.addingTimeInterval(40.1))
+    check(abs(e.clockOffset! - 0.1) < 0.001, "clock offset takes the tightest observation")
+    check(abs(resumed!.timeIntervalSince1970 - (mac0 + 40.1 + 1361)) < 0.001, "resumed end from capture time")
+    // Same frozen snapshot 30 s later: unchanged.
+    let later = e.update(snapshot: snap(1_361_000, ts: resumeTs), macNow: now.addingTimeInterval(70))
+    check(later == resumed, "frozen snapshot after resume stays put")
+
+    // Bar clock set forward by 2 minutes → offset resets instead of being ignored.
+    let jumpTs = Int((mac0 + 200 + 120) * 1000)
+    _ = e.update(snapshot: snap(1_200_000, ts: jumpTs, interval: 1), macNow: now.addingTimeInterval(200))
+    check(abs(e.clockOffset! - (-120)) < 0.001, "clock jump resets offset")
+
+    // No timestamp at all: falls back to poll time.
+    var f = EndsAtEstimator()
+    let plain = f.update(snapshot: BusySnapshot(kind: .simple, timeLeftMs: 5000), macNow: now)
+    check(plain == now.addingTimeInterval(5), "no timestamp → now + left")
+
+    // Replay of real samples (2026-09-07, stock 1.2.3). The bar's timestamp is
+    // constant within a run; runs began when the person pressed pause/start.
+    // (t of poll, left ms, run index, paused); run capture times on the bar
+    // clock, relative to mac0: 0: -0.538, 1: 18.957, 2: 37.316, 3: 48.869.
+    let runTs: [Double] = [-0.538, 18.957, 37.316, 48.869]
+    let rows: [(Double, Int, Int, Bool)] = [
+        (0.0, 1380000, 0, false), (4.6, 1380000, 0, false), (9.3, 1380000, 0, false),
+        (14.4, 1380000, 0, false), (19.0, 1380000, 0, false),
+        (19.5, 1361000, 1, true), (29.4, 1361000, 1, true),
+        (37.7, 1361000, 2, false), (41.8, 1361000, 2, false), (48.5, 1361000, 2, false),
+        (49.0, 1350000, 3, true), (59.9, 1350000, 3, true),
+    ]
+    var r = EndsAtEstimator()
+    var byRun: [Int: Set<Int>] = [:]
+    for (t, left, run, paused) in rows {
+        let mac = now.addingTimeInterval(t)
+        let ts = Int(((mac0 + runTs[run]) * 1000).rounded())
+        let end = r.update(snapshot: snap(left, ts: ts, paused: paused), macNow: mac)
+        byRun[run, default: []].insert(Int((end!.timeIntervalSince1970 * 1000).rounded()))
+    }
+    check(byRun.values.allSatisfy { $0.count == 1 }, "replay: end constant within every run")
+    check(abs(r.clockOffset! - 0.131) < 0.001, "replay: offset converges to best sighting")
 }
 
 if failures == 0 { print("all \(checks) checks passed"); exit(0) }
