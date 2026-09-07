@@ -30,6 +30,7 @@
     if (!state.isBlocking) {
       card.classList.add("done");
       setText(timeEl, "");
+      subEl.hidden = false;
       setText(subEl, original ? "Timer's done, taking you back…" : "Timer's done.");
       if (original && !leaving) { leaving = true; setTimeout(() => location.replace(original), 800); }
       return;
@@ -40,7 +41,7 @@
     timeEl.hidden = mirror;
     const rem = formatRemaining(state.endsAt);
     setText(timeEl, rem || "∞");
-    setText(subEl, state.phase === "rest" ? "You're on a BUSY rest" : "You're BUSY");
+    subEl.hidden = true;
   }
 
   function setState(s) { state = s; render(); }
