@@ -17,8 +17,8 @@
     .row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; }
     input { width: 70px; font: inherit; padding: 2px 4px; }
     .site { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; }
-    .site .host { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .site button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+    .site .host { flex: 1; min-width: 90px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .site button { font: inherit; font-size: 12px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
     .site button.on { background: transparent; color: var(--fg); border-color: var(--line); }
     .site button:disabled { opacity: 0.5; cursor: default; }
   </style>

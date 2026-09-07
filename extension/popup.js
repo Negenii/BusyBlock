@@ -31,7 +31,7 @@
     if (!siteHost) return;
     const entry = listed();
     siteBtn.className = entry ? "on" : "";
-    siteBtn.textContent = entry ? "Blocked while busy · remove" : "Block while busy";
+    siteBtn.textContent = entry ? "Blocked · remove" : "Block while busy";
     siteBtn.disabled = !state || state.phase === "offline" && !state.barConnected && !(state.domains || []).length;
   }
 
