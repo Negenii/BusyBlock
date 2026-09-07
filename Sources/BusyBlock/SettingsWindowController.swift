@@ -35,7 +35,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     private let domainField = NSTextField()
     private var domains: [String] = []
     private let pills = FlowView()
-    private let faviconCheck = NSButton(checkboxWithTitle: "Fetch missing favicons from DuckDuckGo (sends the domain to them)", target: nil, action: nil)
+    private let faviconCheck = NSButton(checkboxWithTitle: "Fetch site icons automatically (turn off for more privacy)", target: nil, action: nil)
 
     private let saveDebounce = PassthroughSubject<Void, Never>()
 
@@ -123,6 +123,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         root.addArrangedSubview(pills)
         faviconCheck.target = self
         faviconCheck.action = #selector(toggled)
+        faviconCheck.toolTip = "Asks the site itself for its favicon.ico first; if it has none, asks DuckDuckGo's icon service, which then sees the domain name."
         root.addArrangedSubview(faviconCheck)
 
         let hint = NSTextField(wrappingLabelWithString: "Changes apply immediately. Config file: \(store.url.path)")
