@@ -1,6 +1,20 @@
 import Foundation
 import BusyBlockCore
 
+// `busyblock-selftest --fetch 10.0.4.20` does one live GET and prints the result.
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--fetch" {
+    let started = Date()
+    do {
+        let data = try RawHTTPClient.get(host: CommandLine.arguments[2], path: "/api/busy/snapshot")
+        let snap = try BusySnapshot.decode(data)
+        print("ok in \(Int(Date().timeIntervalSince(started) * 1000)) ms: \(snap.kind.rawValue) paused=\(snap.isPaused) left=\(snap.phaseTimeLeftMs ?? -1)")
+        exit(0)
+    } catch {
+        print("error after \(Int(Date().timeIntervalSince(started) * 1000)) ms: \(error)")
+        exit(2)
+    }
+}
+
 var failures = 0
 var checks = 0
 func check(_ cond: @autoclosure () -> Bool, _ name: String, file: String = #file, line: Int = #line) {
@@ -88,6 +102,18 @@ do {
     check(created == .defaults, "loadOrCreate writes defaults")
     try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent())
 } catch { failures += 1; print("FAIL: config \(error)") }
+
+// MARK: raw http client
+do {
+    check(RawHTTPClient.parseHost("10.0.4.20")! == ("10.0.4.20", 80), "parseHost bare ip")
+    check(RawHTTPClient.parseHost("127.0.0.1:8321")! == ("127.0.0.1", 8321), "parseHost with port")
+    check(RawHTTPClient.parseHost("http://busy.local:8080/")! == ("busy.local", 8080), "parseHost strips scheme and path")
+    check(RawHTTPClient.parseHost("") == nil, "parseHost empty")
+    let ok = Data("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}".utf8)
+    check((try? RawHTTPClient.parse(ok)) == Data("{}".utf8), "parse 200 body")
+    check((try? RawHTTPClient.parse(Data("HTTP/1.1 404 Not Found\r\n\r\n{}".utf8))) == nil, "parse rejects 404")
+    check((try? RawHTTPClient.parse(Data("garbage".utf8))) == nil, "parse rejects garbage")
+}
 
 // MARK: domains
 check(Domain.normalize("https://www.YouTube.com/watch?v=1") == "youtube.com/watch?v=1", "normalize keeps path")
