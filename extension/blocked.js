@@ -28,7 +28,11 @@
       setText(timeEl, "");
       subEl.hidden = false;
       setText(subEl, original ? "Timer's done, taking you back…" : "Timer's done.");
-      if (original && !leaving) { leaving = true; setTimeout(() => location.replace(original), 800); }
+      if (original && !leaving) {
+        leaving = true;
+        const go = () => location.replace(original);
+        if (api.declarativeNetRequest) applyRules(api, state, port).then(go, go); else setTimeout(go, 800);
+      }
       return;
     }
     // With the bar's own screen on show there is no second timer to disagree with it.
@@ -40,7 +44,14 @@
     subEl.hidden = true;
   }
 
-  function setState(s) { state = s; render(); }
+  let rulesKey = null;
+  function setState(s) {
+    state = s;
+    render();
+    // Keep the browser's rules honest from here as well (see applyRules).
+    const key = JSON.stringify([s.isBlocking, s.domains]);
+    if (key !== rulesKey && api.declarativeNetRequest) { rulesKey = key; applyRules(api, s, port); }
+  }
 
   // Live feed from the helper, only while this tab is on screen: browsers cap
   // connections per host (~6), so background tabs must not hold one. Until a

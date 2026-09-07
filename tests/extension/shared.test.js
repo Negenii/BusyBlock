@@ -1,6 +1,27 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { shouldBlock, rulesFor, formatRemaining, stateURL, goURL } = require("../../extension/shared.js");
+const { shouldBlock, rulesFor, applyRules, formatRemaining, stateURL, goURL } = require("../../extension/shared.js");
+
+function fakeApi(base, initial) {
+  let rules = initial.slice();
+  const calls = [];
+  return { api: { runtime: { getURL: (p) => base + p }, declarativeNetRequest: {
+    getDynamicRules: async () => rules.slice(),
+    updateDynamicRules: async ({ removeRuleIds, addRules }) => { calls.push({ removeRuleIds, addRules }); rules = rules.filter((r) => !removeRuleIds.includes(r.id)).concat(addRules || []); },
+  } }, rules: () => rules, calls };
+}
+
+test("applyRules writes helper-based rules in Safari and clears them when not blocking", async () => {
+  const f = fakeApi("safari-web-extension://OLD-UUID/", [{ id: 1, action: { type: "redirect", redirect: { extensionPath: "/blocked.html" } }, condition: {} }]);
+  const changed = await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
+  assert.equal(changed, true);
+  assert.equal(f.rules().length, 2);
+  assert.equal(f.rules()[0].action.redirect.regexSubstitution, "http://127.0.0.1:48321/go?u=\\0");
+  const again = await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
+  assert.equal(again, false, "identical rules are left alone");
+  await applyRules(f.api, { isBlocking: false, domains: ["x.com"] }, 48321);
+  assert.equal(f.rules().length, 0);
+});
 
 const on = { isBlocking: true, domains: ["youtube.com", "reddit.com/r"] };
 

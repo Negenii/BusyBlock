@@ -67,6 +67,25 @@ function rulesFor(domains, blockedPage, viaHelper) {
   return rules;
 }
 
+// Makes the browser's dynamic rules match `state`. Used by the worker and by
+// the block page itself, so rules still follow the helper when the background
+// is asleep (Safari) — otherwise a finished timer would leave stale redirects.
+let applyRulesQueue = Promise.resolve();
+function applyRules(api, state, port) {
+  const domains = state && state.isBlocking && Array.isArray(state.domains) ? state.domains : [];
+  const blockedPage = api.runtime.getURL("blocked.html");
+  const viaHelper = blockedPage.startsWith("safari-web-extension://") ? goURL(port) : null;
+  const wanted = rulesFor(domains, blockedPage, viaHelper);
+  const norm = (rs) => JSON.stringify(rs.map((r) => ({ id: r.id, action: r.action, condition: r.condition })).sort((x, y) => x.id - y.id));
+  applyRulesQueue = applyRulesQueue.then(async () => {
+    const existing = await api.declarativeNetRequest.getDynamicRules();
+    if (norm(existing) === norm(wanted)) return false;
+    await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existing.map((r) => r.id), addRules: wanted });
+    return true;
+  }).catch((e) => { console.error("rules update failed", e); return false; });
+  return applyRulesQueue;
+}
+
 function offlineState() {
   return { isBlocking: false, domains: [], endsAt: 0, paused: false, barConnected: false, phase: "offline" };
 }
@@ -80,5 +99,5 @@ function formatRemaining(endsAtMs, nowMs) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { DEFAULT_PORT, stateURL, goURL, shouldBlock, rulesFor, offlineState, formatRemaining, escapeRegex };
+  module.exports = { DEFAULT_PORT, stateURL, goURL, shouldBlock, rulesFor, applyRules, offlineState, formatRemaining, escapeRegex };
 }

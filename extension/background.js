@@ -78,23 +78,9 @@ function updateBadge(state) {
 }
 
 function updateRules(state) {
-  const domains = state.isBlocking && Array.isArray(state.domains) ? state.domains : [];
-  const blockedPage = api.runtime.getURL("blocked.html");
-  const wanted = rulesFor(domains, blockedPage, IS_SAFARI ? goURL(port) : null);
-  const key = JSON.stringify(wanted);
-  rulesQueue = rulesQueue.then(async () => {
-    if (key === appliedKey) return;
-    // Compare with what the browser actually holds: Safari keeps dynamic rules
-    // across reinstalls, and a rule pointing at a previous extension URL leaves
-    // the tab blank. Anything different gets rewritten.
-    const existing = await api.declarativeNetRequest.getDynamicRules();
-    const norm = (rs) => JSON.stringify(rs.map((r) => ({ id: r.id, action: r.action, condition: r.condition })).sort((x, y) => x.id - y.id));
-    if (norm(existing) !== norm(wanted)) {
-      await api.declarativeNetRequest.updateDynamicRules({ removeRuleIds: existing.map((r) => r.id), addRules: wanted });
-    }
-    appliedKey = key;
-  }).catch((e) => { appliedKey = null; console.error("rules update failed", e); });
-  return rulesQueue;
+  const key = JSON.stringify([state.isBlocking, state.domains, port]);
+  if (key === appliedKey) return Promise.resolve();
+  return applyRules(api, state, port).then(() => { appliedKey = key; });
 }
 
 // Rules only fire on navigation; tabs already sitting on a blocked site get moved.
