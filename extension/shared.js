@@ -63,7 +63,8 @@ function offlineState() {
 
 function formatRemaining(endsAtMs, nowMs) {
   if (!endsAtMs) return "";
-  const secs = Math.max(0, Math.round((endsAtMs - (nowMs || Date.now())) / 1000));
+  // Bar counts whole seconds down: 58.4 s left shows as 59.
+  const secs = Math.max(0, Math.ceil((endsAtMs - (nowMs || Date.now())) / 1000 - 0.05));
   const m = Math.floor(secs / 60), s = secs % 60;
   return m + ":" + (s < 10 ? "0" : "") + s;
 }

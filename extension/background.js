@@ -11,6 +11,7 @@ const LIVE_POLL_MS = 3000;
 
 let lastState = null;
 let port = DEFAULT_PORT;
+let fetchSeq = 0;          // sync() calls overlap (interval, alarm, content scripts); ignore stale responses
 let appliedKey = null;
 let rulesQueue = Promise.resolve();
 
@@ -37,11 +38,14 @@ async function fetchState() {
 }
 
 async function sync() {
+  const seq = ++fetchSeq;
   try {
     const state = await fetchState();
+    if (seq !== fetchSeq) return lastState;   // a newer response already landed
     await applyState(state);
     return state;
   } catch (_) {
+    if (seq !== fetchSeq) return lastState;
     // Helper not running: fail open.
     await applyState(offlineState());
     return null;

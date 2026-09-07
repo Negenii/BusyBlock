@@ -97,5 +97,37 @@ check(!Domain.matches(host: "notyoutube.com", path: "/", entry: "youtube.com"), 
 check(Domain.matches(host: "reddit.com", path: "/r/all", entry: "reddit.com/r"), "path prefix matches")
 check(!Domain.matches(host: "reddit.com", path: "/user", entry: "reddit.com/r"), "other path does not match")
 
+// MARK: endsAt tracker
+do {
+    var t = EndsAtTracker()
+    let base = now
+    // True end is base+60. Bar reports whole seconds, so a poll just before a
+    // tick sees "60" and estimates late; the next poll after the tick sees "59"
+    // and lands closer. Estimates never move later inside one phase.
+    let key = "SIMPLE|-1|false"
+    let e1 = t.update(candidate: base.addingTimeInterval(0.95 + 60), phaseKey: key)
+    let e2 = t.update(candidate: base.addingTimeInterval(1.6 + 59), phaseKey: key)
+    let e3 = t.update(candidate: base.addingTimeInterval(2.3 + 59), phaseKey: key)
+    let e4 = t.update(candidate: base.addingTimeInterval(3.0 + 58), phaseKey: key)
+    check(abs(e1!.timeIntervalSince(base.addingTimeInterval(60.95))) < 0.001, "tracker takes first estimate")
+    check(abs(e2!.timeIntervalSince(base.addingTimeInterval(60.6))) < 0.001, "earlier estimate wins")
+    check(e3 == e2, "later estimate within a phase is ignored")
+    check(e4 == e2, "never moves later inside the phase")
+    let e5 = t.update(candidate: base.addingTimeInterval(4.02 + 56), phaseKey: key)
+    check(abs(e5!.timeIntervalSince(base.addingTimeInterval(60.02))) < 0.001, "poll right after a tick tightens the bound")
+
+    let restarted = t.update(candidate: base.addingTimeInterval(1500), phaseKey: "SIMPLE|-1|false")
+    check(restarted == base.addingTimeInterval(1500), "jump > tolerance = restarted timer")
+
+    let rest = t.update(candidate: base.addingTimeInterval(300), phaseKey: "INTERVAL|1|false")
+    check(rest == base.addingTimeInterval(300), "new phase key resets")
+    let paused = t.update(candidate: base.addingTimeInterval(310), phaseKey: "INTERVAL|1|true")
+    check(paused == base.addingTimeInterval(310), "pause is a new key")
+    check(t.update(candidate: nil, phaseKey: "INFINITE|-1|false") == nil, "nil candidate clears")
+
+    let s = BusySnapshot(kind: .interval, isPaused: false, currentInterval: 3)
+    check(s.phaseKey == "INTERVAL|3|false", "snapshot phaseKey")
+}
+
 if failures == 0 { print("all \(checks) checks passed"); exit(0) }
 print("\(failures) of \(checks) checks failed"); exit(1)

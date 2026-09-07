@@ -90,7 +90,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func remaining(_ s: BlockState) -> String {
         guard let end = s.endsAt else { return "" }
-        let secs = max(0, Int(end.timeIntervalSinceNow.rounded()))
+        // Bar shows whole seconds counting down: 58.4 s left reads as 59.
+        let secs = max(0, Int((end.timeIntervalSinceNow - 0.05).rounded(.up)))
         return String(format: "%d:%02d", secs / 60, secs % 60)
     }
 

@@ -40,6 +40,8 @@ test("rulesFor makes redirect + block per entry with unique ids", () => {
 test("formatRemaining and stateURL", () => {
   assert.equal(formatRemaining(0), "");
   assert.equal(formatRemaining(1000 * 65 + 1000, 1000), "1:05");
+  assert.equal(formatRemaining(59_400, 1000), "0:59");
+  assert.equal(formatRemaining(59_000, 1000), "0:58");
   assert.equal(stateURL(), "http://127.0.0.1:48321/state");
   assert.equal(stateURL(5000), "http://127.0.0.1:5000/state");
 });

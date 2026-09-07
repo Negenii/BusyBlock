@@ -12,6 +12,7 @@ final class BlockController: ObservableObject {
     private let client: BarClient
     private var loop: Task<Void, Never>?
     private var failures = 0
+    private var endsAtTracker = EndsAtTracker()
     private let maxFailures = 3
     var onChange: ((BlockState, BlockState) -> Void)?
 
@@ -48,14 +49,20 @@ final class BlockController: ObservableObject {
 
     func pollOnce() async {
         do {
+            let sent = Date()
             let snap = try await client.fetchSnapshot()
+            // The bar sampled its clock roughly mid-flight.
+            let now = sent.addingTimeInterval(Date().timeIntervalSince(sent) / 2)
             failures = 0
             lastError = nil
-            apply(BlockDecision.evaluate(snapshot: snap, config: config, now: Date()))
+            var decided = BlockDecision.evaluate(snapshot: snap, config: config, now: now)
+            decided.endsAt = endsAtTracker.update(candidate: decided.endsAt, phaseKey: snap.phaseKey)
+            apply(decided)
         } catch {
             failures += 1
             lastError = String(describing: error)
             if failures >= maxFailures {
+                endsAtTracker.reset()
                 apply(BlockDecision.evaluate(snapshot: nil, config: config, now: Date()))
             }
         }
@@ -63,10 +70,7 @@ final class BlockController: ObservableObject {
 
     private func apply(_ new: BlockState) {
         let old = state
-        // endsAt drifts by poll jitter; treat sub-second differences as equal.
-        var cmp = new
-        if let a = old.endsAt, let b = new.endsAt, abs(a.timeIntervalSince(b)) < 1.5 { cmp.endsAt = a }
-        guard cmp != old else { return }
+        guard new != old else { return }
         state = new
         onChange?(old, new)
     }
