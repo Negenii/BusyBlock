@@ -37,6 +37,12 @@ test("rulesFor makes redirect + block per entry with unique ids", () => {
   assert.equal(rules[3].condition.urlFilter, "||reddit.com^");
 });
 
+test("rulesFor relative mode uses extensionPath (Safari, UUID-proof)", () => {
+  const rules = rulesFor(["youtube.com"], "safari-web-extension://X/blocked.html", true);
+  assert.deepEqual(rules[0].action.redirect, { extensionPath: "/blocked.html" });
+  assert.ok(!JSON.stringify(rules).includes("safari-web-extension://X"));
+});
+
 test("formatRemaining and stateURL", () => {
   assert.equal(formatRemaining(0), "");
   assert.equal(formatRemaining(1000 * 65 + 1000, 1000), "1:05");

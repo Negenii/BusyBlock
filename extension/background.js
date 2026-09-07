@@ -13,6 +13,14 @@ let lastState = null;
 let port = DEFAULT_PORT;
 let fetchSeq = 0;          // sync() calls overlap (interval, alarm, content scripts); ignore stale responses
 let inflight = null;       // the one request in flight (declared before schedule() runs below)
+const IS_SAFARI = api.runtime.getURL("").startsWith("safari-web-extension://");
+// Last real page URL per tab, so a Safari block page (no ?u=) can still say
+// which site it stands in for and return there when the timer ends.
+const lastSiteURL = new Map();
+api.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.url && /^https?:/.test(info.url)) lastSiteURL.set(tabId, info.url);
+});
+api.tabs.onRemoved.addListener((tabId) => lastSiteURL.delete(tabId));
 let appliedKey = null;
 let rulesQueue = Promise.resolve();
 
@@ -94,14 +102,15 @@ function updateRules(state) {
   rulesQueue = rulesQueue.then(async () => {
     if (key === appliedKey) return;
     const existing = await api.declarativeNetRequest.getDynamicRules();
-    const stale = existing.some((r) => r.action && r.action.redirect && r.action.redirect.regexSubstitution
-      && !r.action.redirect.regexSubstitution.startsWith(blockedPage));
+    const stale = existing.some((r) => r.action && r.action.redirect && (
+      (IS_SAFARI && r.action.redirect.regexSubstitution) ||
+      (r.action.redirect.regexSubstitution && !r.action.redirect.regexSubstitution.startsWith(blockedPage))));
     const same = !stale && existing.length === domains.length * 2 && domains.every((d) =>
       existing.some((r) => r.condition && r.condition.urlFilter === "||" + (d.split("/")[0]) + "^"));
     if (same && existing.length > 0) { appliedKey = key; return; }
     await api.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: existing.map((r) => r.id),
-      addRules: rulesFor(domains, blockedPage)
+      addRules: rulesFor(domains, blockedPage, IS_SAFARI)
     });
     appliedKey = key;
   }).catch((e) => { appliedKey = null; console.error("rules update failed", e); });
@@ -125,6 +134,11 @@ api.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (type === "getState") {
     sync().then((s) => sendResponse(s || lastState || offlineState()));
     return true;
+  }
+  if (type === "originalURL") {
+    const id = sender && sender.tab ? sender.tab.id : message.tabId;
+    sendResponse({ url: (id !== undefined && lastSiteURL.get(id)) || "" });
+    return false;
   }
   if (type === "shouldBlock") {
     sync().then((s) => sendResponse({ block: shouldBlock(message.url, s || lastState), page: api.runtime.getURL("blocked.html") }));

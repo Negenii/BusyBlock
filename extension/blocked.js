@@ -1,11 +1,20 @@
 (function () {
   const api = typeof browser !== "undefined" ? browser : chrome;
-  const original = new URLSearchParams(location.search).get("u") || "";
+  let original = new URLSearchParams(location.search).get("u") || "";
   let host = "";
-  try { host = new URL(original).hostname.replace(/^www\./, ""); } catch (_) {}
   const hostEl = document.getElementById("host"), favEl = document.getElementById("favicon");
-  hostEl.textContent = host || "this site";
-  document.getElementById("site").title = host;
+  function setOriginal(url) {
+    original = url || "";
+    try { host = new URL(original).hostname.replace(/^www\./, ""); } catch (_) { host = ""; }
+    hostEl.textContent = host || "this site";
+    document.getElementById("site").title = host;
+  }
+  setOriginal(original);
+  // Safari redirects by extensionPath (no ?u=): ask the worker which site this tab was on.
+  if (!original) {
+    api.tabs.getCurrent().then((tab) => api.runtime.sendMessage({ type: "originalURL", tabId: tab && tab.id }))
+      .then((r) => { if (r && r.url) { setOriginal(r.url); loadFavicon(port); } }).catch(() => {});
+  }
   // The site's icon stands in for its name. The helper serves it (own cache,
   // site first, then the optional DuckDuckGo fallback); name if it has none.
   function loadFavicon(port) {

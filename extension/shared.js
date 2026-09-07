@@ -34,17 +34,21 @@ function escapeRegex(text) {
 
 // Two declarativeNetRequest rules per entry: top-level navigations redirect to
 // the block page with the original URL in ?u=, embedded frames just vanish.
-function rulesFor(domains, blockedPage) {
+// `relative` (Safari): redirect by extensionPath, which survives the new UUID
+// Safari assigns on every reinstall. The original URL can't ride along then;
+// the worker remembers it per tab instead (see originalURL in background.js).
+function rulesFor(domains, blockedPage, relative) {
   const rules = [];
   domains.forEach((domain, index) => {
     const slash = domain.indexOf("/");
     const host = slash === -1 ? domain : domain.slice(0, slash);
     const path = slash === -1 ? "" : domain.slice(slash);
     const tail = path ? escapeRegex(path) + ".*" : "([/?#].*)?";
+    const redirect = relative ? { extensionPath: "/blocked.html" } : { regexSubstitution: blockedPage + "?u=\\0" };
     rules.push({
       id: index * 2 + 1,
       priority: 1,
-      action: { type: "redirect", redirect: { regexSubstitution: blockedPage + "?u=\\0" } },
+      action: { type: "redirect", redirect },
       condition: { regexFilter: "^https?://([^/]*\\.)?" + escapeRegex(host) + tail + "$", resourceTypes: ["main_frame"] }
     });
     rules.push({
