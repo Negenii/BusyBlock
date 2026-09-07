@@ -533,7 +533,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "me.negenii.BusyBlock.BusyBlock-Safari";
+				PRODUCT_BUNDLE_IDENTIFIER = me.negenii.BusyBlock.Safari;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -575,7 +575,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "me.negenii.BusyBlock.BusyBlock-Safari";
+				PRODUCT_BUNDLE_IDENTIFIER = me.negenii.BusyBlock.Safari;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
