@@ -112,6 +112,19 @@ public struct BarFrame: Equatable {
         let expected = width * height * bytesPerPixel
         guard raw.count >= expected, expected > 0 else { throw Error.sizeMismatch }
         raw = raw.prefix(expected)
+        if format == .rgb888 {
+            // The panel's "RGB888" is byte order B, G, R on the wire (the official
+            // web mirror swaps it the same way). Hand out real RGB.
+            var rgb = Data(count: expected)
+            var i = 0
+            while i + 2 < expected {
+                rgb[i] = raw[raw.startIndex + i + 2]
+                rgb[i + 1] = raw[raw.startIndex + i + 1]
+                rgb[i + 2] = raw[raw.startIndex + i]
+                i += 3
+            }
+            raw = rgb
+        }
         if format == .l8 {
             var rgb = Data(capacity: expected * 3)
             for b in raw { rgb.append(contentsOf: [b, b, b]) }

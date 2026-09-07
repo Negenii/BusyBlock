@@ -244,8 +244,8 @@ do {
 // MARK: protobuf / bar state message / frames
 do {
     let pb = Protobuf.self
-    // Frame: front 4x1 RGB888, RLE: 3 repeats of red then 1 verbatim green block.
-    let rle = Data([0x03, 255, 0, 0, 0x81, 0, 255, 0])
+    // Frame: front 4x1, wire order BGR, RLE: 3 repeats of red then 1 verbatim green block.
+    let rle = Data([0x03, 0, 0, 255, 0x81, 0, 255, 0])
     let frame = pb.field(1, varint: 0) + pb.field(2, varint: 4) + pb.field(3, varint: 1)
         + pb.field(4, varint: 1) + pb.field(5, varint: 0) + pb.field(6, bytes: rle)
     let timerJSON = Data(#"{"snapshot":{"type":"SIMPLE","card_id":"0","time_left_ms":9000,"is_paused":false}}"#.utf8)
@@ -256,7 +256,7 @@ do {
     check(msg.timestampMs == 1_788_000_000_123, "state envelope timestamp")
     check(msg.timer?.kind == .simple && msg.timer?.timeLeftMs == 9000, "timer json inside protobuf")
     check(msg.timer?.timestampMs == 1_788_000_000_123, "timer gets envelope timestamp")
-    check(msg.frames.count == 1 && msg.frames[0].width == 4 && msg.frames[0].rgb == Data([255,0,0, 255,0,0, 255,0,0, 0,255,0]), "RLE frame decoded to RGB")
+    check(msg.frames.count == 1 && msg.frames[0].width == 4 && msg.frames[0].rgb == Data([255,0,0, 255,0,0, 255,0,0, 0,255,0]), "RLE frame decoded BGR→RGB")
     let err = pb.field(3, bytes: Data())   // Error{} = RESOURCE_LIMIT/FATAL
     let errMsg = try BarStateMessage.decode(err)
     check(errMsg.resourceLimit, "resource limit error")
