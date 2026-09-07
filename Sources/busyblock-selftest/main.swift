@@ -113,6 +113,8 @@ do {
     check((try? RawHTTPClient.parse(ok)) == Data("{}".utf8), "parse 200 body")
     check((try? RawHTTPClient.parse(Data("HTTP/1.1 404 Not Found\r\n\r\n{}".utf8))) == nil, "parse rejects 404")
     check((try? RawHTTPClient.parse(Data("garbage".utf8))) == nil, "parse rejects garbage")
+    let chunked = Data("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n{\"a\":\r\n2\r\n1}\r\n0\r\n\r\n".utf8)
+    check((try? RawHTTPClient.parse(chunked)) == Data("{\"a\":1}".utf8), "parse chunked body")
 }
 
 // MARK: domains

@@ -121,16 +121,40 @@ public enum RawHTTPClient {
         return nil
     }
 
-    /// Splits status line + headers from the body; only Content-Length or
-    /// close-delimited bodies (what the bar and busybar-manager send).
+    static func isChunked(_ head: Data) -> Bool {
+        String(decoding: head, as: UTF8.self).lowercased().contains("transfer-encoding: chunked")
+    }
+
+    /// Splits status line + headers from the body. Handles Content-Length,
+    /// chunked (Node proxies such as busybar-manager) and close-delimited bodies.
     public static func parse(_ raw: Data) throws -> Data {
         guard let end = headerEnd(raw) else { throw Error.badResponse }
         let head = String(decoding: raw[..<end], as: UTF8.self)
         guard let statusLine = head.split(separator: "\r\n").first,
               let code = Int(statusLine.split(separator: " ").dropFirst().first ?? "") else { throw Error.badResponse }
         guard (200..<300).contains(code) else { throw Error.status(code) }
-        var body = raw[end...]
+        var body = Data(raw[end...])
+        if isChunked(raw[..<end]) { return try dechunk(body) }
         if let len = contentLength(raw[..<end]), body.count > len { body = body.prefix(len) }
-        return Data(body)
+        return body
+    }
+
+    /// "<hex-size>\r\n<bytes>\r\n" … "0\r\n\r\n". Tolerates a truncated tail (close-delimited).
+    static func dechunk(_ data: Data) throws -> Data {
+        var out = Data()
+        var i = data.startIndex
+        let crlf = Data("\r\n".utf8)
+        while i < data.endIndex {
+            guard let lineEnd = data[i...].range(of: crlf) else { break }
+            let sizeText = String(decoding: data[i..<lineEnd.lowerBound], as: UTF8.self)
+                .split(separator: ";").first.map(String.init) ?? ""
+            guard let size = Int(sizeText.trimmingCharacters(in: .whitespaces), radix: 16) else { throw Error.badResponse }
+            if size == 0 { break }
+            let start = lineEnd.upperBound
+            let stop = min(start + size, data.endIndex)
+            out.append(data[start..<stop])
+            i = min(stop + 2, data.endIndex)
+        }
+        return out
     }
 }
