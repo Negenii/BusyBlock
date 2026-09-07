@@ -31,7 +31,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     private var apps: [String] = []
 
     // Domains
-    private let domainsTable = NSTableView()
+    private let chips = FlowView()
     private let domainField = NSTextField()
     private var domains: [String] = []
     private let pills = FlowView()
@@ -106,7 +106,8 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         dropZone.heightAnchor.constraint(equalToConstant: 64).isActive = true
 
         root.addArrangedSubview(header("Websites to block"))
-        root.addArrangedSubview(table(domainsTable, id: "domain", rowHeight: 30))
+        chips.spacing = 8
+        root.addArrangedSubview(chips)
         domainField.placeholderString = "youtube.com, reddit.com/r/all, …  press Return to add"
         domainField.delegate = self
         domainField.target = self
@@ -124,7 +125,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         faviconCheck.action = #selector(toggled)
         root.addArrangedSubview(faviconCheck)
 
-        let hint = NSTextField(wrappingLabelWithString: "Changes apply immediately. Select an item and press Delete to remove it. Config file: \(store.url.path)")
+        let hint = NSTextField(wrappingLabelWithString: "Changes apply immediately. Config file: \(store.url.path)")
         hint.textColor = .tertiaryLabelColor
         hint.font = .systemFont(ofSize: 11)
         root.addArrangedSubview(hint)
@@ -191,6 +192,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     }
 
     private func table(_ table: NSTableView, id: String, rowHeight: CGFloat) -> NSView {
+        // Only the apps list is a table now; websites are chips.
         let col = NSTableColumn(identifier: .init(id))
         col.resizingMask = .autoresizingMask
         table.addTableColumn(col)
@@ -210,7 +212,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         scroll.layer?.borderWidth = 1
         scroll.layer?.borderColor = NSColor.separatorColor.cgColor
         scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.heightAnchor.constraint(equalToConstant: id == "app" ? 150 : 120).isActive = true
+        scroll.heightAnchor.constraint(equalToConstant: 150).isActive = true
         return scroll
     }
 
@@ -226,7 +228,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         restCheck.state = c.blockDuringRest ? .on : .off
         screenCheck.state = c.showScreenInBrowser ? .on : .off
         if apps != c.blockedApps { apps = c.blockedApps; appsTable.reloadData() }
-        if domains != c.blockedDomains { domains = c.blockedDomains; domainsTable.reloadData() }
+        if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
         faviconCheck.state = c.faviconFallback ? .on : .off
         FaviconLoader.shared.allowThirdParty = c.faviconFallback
         rebuildPills()
@@ -313,6 +315,23 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         saveDebounce.send()
     }
 
+    private func rebuildChips() {
+        chips.subviews.forEach { $0.removeFromSuperview() }
+        for d in domains {
+            let chip = ChipView(title: d)
+            chip.onRemove = { [weak self] in
+                guard let self, let i = self.domains.firstIndex(of: d) else { return }
+                self.domains.remove(at: i)
+                self.rebuildChips(); self.rebuildPills(); self.saveDebounce.send()
+            }
+            FaviconLoader.shared.image(for: d) { [weak chip] img in
+                if let img { chip?.icon.image = img; chip?.icon.contentTintColor = nil }
+            }
+            chips.addSubview(chip)
+        }
+        chips.needsLayout = true
+    }
+
     private func rebuildPills() {
         pills.subviews.forEach { $0.removeFromSuperview() }
         for d in Suggestions.remaining(given: domains) {
@@ -333,7 +352,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         guard !d.isEmpty, !domains.contains(d) else { return }
         domains.append(d)
         domains.sort()
-        domainsTable.reloadData()
+        rebuildChips()
         rebuildPills()
         saveDebounce.send()
     }
@@ -345,29 +364,25 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         guard !domains.contains(d) else { return }
         domains.append(d)
         domains.sort()
-        domainsTable.reloadData()
+        rebuildChips()
         rebuildPills()
         saveDebounce.send()
     }
 
     private func removeSelected(in table: NSTableView) {
         let rows = table.selectedRowIndexes
-        guard !rows.isEmpty else { return }
-        if table === appsTable { apps = apps.enumerated().filter { !rows.contains($0.offset) }.map(\.element) }
-        else { domains = domains.enumerated().filter { !rows.contains($0.offset) }.map(\.element) }
+        guard !rows.isEmpty, table === appsTable else { return }
+        apps = apps.enumerated().filter { !rows.contains($0.offset) }.map(\.element)
         table.reloadData()
-        if table === domainsTable { rebuildPills() }
         saveDebounce.send()
     }
 
     // MARK: - Tables
 
-    func numberOfRows(in tableView: NSTableView) -> Int {
-        tableView === appsTable ? apps.count : domains.count
-    }
+    func numberOfRows(in tableView: NSTableView) -> Int { apps.count }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        if tableView === appsTable {
+        if tableView === appsTable, row < apps.count {
             let id = apps[row]
             let cell = ItemCell.dequeue(tableView, id: "appCell")
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
@@ -385,22 +400,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
             }
             return cell
         }
-        let d = domains[row]
-        let cell = ItemCell.dequeue(tableView, id: "domainCell", compact: true)
-        cell.icon.image = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
-        cell.icon.contentTintColor = .secondaryLabelColor
-        cell.title.stringValue = d
-        cell.subtitle.stringValue = ""
-        FaviconLoader.shared.image(for: d) { [weak cell] img in
-            // The cell may have been recycled for another domain by now.
-            guard let cell, cell.title.stringValue == d, let img else { return }
-            cell.icon.image = img
-        }
-        cell.onRemove = { [weak self] in
-            guard let self, let i = self.domains.firstIndex(of: d) else { return }
-            self.domains.remove(at: i); self.domainsTable.reloadData(); self.rebuildPills(); self.saveDebounce.send()
-        }
-        return cell
+        return nil
     }
 
     func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int,
@@ -552,6 +552,53 @@ final class DropZoneView: NSView {
     }
 
     override func mouseUp(with event: NSEvent) { onClick?() }
+}
+
+/// A blocked website: favicon, domain, remove button, in a rounded pill.
+final class ChipView: NSView {
+    let icon = NSImageView()
+    var onRemove: (() -> Void)?
+
+    init(title: String) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 15
+        layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.12).cgColor
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor.separatorColor.cgColor
+        icon.image = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
+        icon.contentTintColor = .secondaryLabelColor
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 13)
+        label.lineBreakMode = .byTruncatingMiddle
+        label.maximumNumberOfLines = 1
+        let remove = NSButton()
+        remove.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Remove \(title)")
+        remove.isBordered = false
+        remove.contentTintColor = .tertiaryLabelColor
+        remove.target = self
+        remove.action = #selector(removeTapped)
+        remove.toolTip = "Remove \(title)"
+        let h = NSStackView(views: [icon, label, remove])
+        h.orientation = .horizontal
+        h.alignment = .centerY
+        h.spacing = 7
+        h.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 6)
+        h.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(h)
+        NSLayoutConstraint.activate([
+            h.leadingAnchor.constraint(equalTo: leadingAnchor), h.trailingAnchor.constraint(equalTo: trailingAnchor),
+            h.topAnchor.constraint(equalTo: topAnchor), h.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    @objc private func removeTapped() { onRemove?() }
 }
 
 /// Wraps its subviews into rows, like tags. Height follows content.
