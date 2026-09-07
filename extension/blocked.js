@@ -6,11 +6,13 @@
   const hostEl = document.getElementById("host"), favEl = document.getElementById("favicon");
   hostEl.textContent = host || "this site";
   document.getElementById("site").title = host;
-  if (host) {
-    // The site's own icon stands in for its name; fall back to the name if it has none.
+  // The site's icon stands in for its name. The helper serves it (own cache,
+  // site first, then the optional DuckDuckGo fallback); name if it has none.
+  function loadFavicon(port) {
+    if (!host) return;
     favEl.onload = () => { favEl.hidden = false; hostEl.hidden = true; };
     favEl.onerror = () => { favEl.hidden = true; hostEl.hidden = false; };
-    favEl.src = "https://" + host + "/favicon.ico";
+    favEl.src = "http://127.0.0.1:" + (port || DEFAULT_PORT) + "/favicon?host=" + encodeURIComponent(host);
   }
 
   let state = null;
@@ -82,7 +84,7 @@
   });
   window.addEventListener("pagehide", disconnectFeed);
 
-  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { port = Number(v.port) || DEFAULT_PORT; connectFeed(); });
+  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { port = Number(v.port) || DEFAULT_PORT; loadFavicon(port); connectFeed(); });
 
   // Fallback through the worker (also confirms rules are in place).
   function refresh() {

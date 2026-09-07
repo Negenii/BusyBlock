@@ -86,6 +86,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return s.wireJSON()
             }
         }
+        server.faviconProvider = { host, done in
+            guard !host.isEmpty else { done(nil); return }
+            DispatchQueue.main.async {
+                FaviconLoader.shared.allowThirdParty = self.store.config.faviconFallback
+                FaviconLoader.shared.png(for: host, completion: done)
+            }
+        }
         server.initialEvents = { [weak self] in
             guard let self else { return [] }
             var events = [("state", self.controller.state.wireJSON())]

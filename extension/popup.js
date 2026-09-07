@@ -20,6 +20,9 @@
     siteHost = new URL(url).hostname.replace(/^www\./, "");
     siteHostEl.textContent = siteHost;
     siteBox.hidden = false;
+    const icon = document.getElementById("siteIcon");
+    icon.onload = () => { icon.hidden = false; };
+    icon.src = "http://127.0.0.1:" + currentPort + "/favicon?host=" + encodeURIComponent(siteHost);
     renderSite();
   }).catch(() => {});
 

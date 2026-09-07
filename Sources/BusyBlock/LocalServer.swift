@@ -12,6 +12,8 @@ final class LocalServer {
     var initialEvents: () -> [(String, Data)] = { [] }
     /// `POST /domains` with {"add": host} or {"remove": host}. Returns the new state JSON.
     var onDomainChange: ((_ add: String?, _ remove: String?) -> Data)?
+    /// `GET /favicon?host=x` → PNG bytes (nil = 404). Async: the loader may hit the network.
+    var faviconProvider: ((_ host: String, _ done: @escaping (Data?) -> Void) -> Void)?
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "me.negenii.BusyBlock.server")
     private let log: (String) -> Void
@@ -138,9 +140,31 @@ final class LocalServer {
         let parts = line.split(separator: " ")
         let method = parts.count > 0 ? String(parts[0]) : "GET"
         var path = parts.count > 1 ? String(parts[1]) : "/"
-        if let q = path.firstIndex(of: "?") { path = String(path[..<q]) }
+        var query: [String: String] = [:]
+        if let q = path.firstIndex(of: "?") {
+            for pair in path[path.index(after: q)...].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1).map { String($0).removingPercentEncoding ?? String($0) }
+                if kv.count == 2 { query[kv[0]] = kv[1] }
+            }
+            path = String(path[..<q])
+        }
         let origin = Self.header(requestHead, "origin")
         let fromExtension = OriginPolicy.isExtension(origin)
+
+        if method == "GET" && path == "/favicon", let provider = faviconProvider {
+            let host = Domain.normalize(query["host"] ?? "").split(separator: "/").first.map(String.init) ?? ""
+            provider(host) { [weak self] png in
+                self?.queue.async {
+                    var head = png == nil ? "HTTP/1.1 404 Not Found\r\n" : "HTTP/1.1 200 OK\r\n"
+                    head += "Content-Type: \(png == nil ? "application/json" : "image/png")\r\n"
+                    head += "Access-Control-Allow-Origin: *\r\nCache-Control: max-age=3600\r\n"
+                    let body = png ?? Data(#"{"error":"no icon"}"#.utf8)
+                    head += "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+                    conn.send(content: Data(head.utf8) + body, completion: .contentProcessed { _ in conn.cancel() })
+                }
+            }
+            return
+        }
 
         if method == "GET" && path == "/events" {
             let ua = Self.header(requestHead, "user-agent") ?? "?"

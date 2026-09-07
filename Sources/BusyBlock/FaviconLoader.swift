@@ -36,6 +36,15 @@ final class FaviconLoader {
     /// Whether the DuckDuckGo fallback may be used (Settings → favicons switch).
     var allowThirdParty = true
 
+    /// PNG bytes for the extension pages (served by LocalServer).
+    func png(for entry: String, completion: @escaping (Data?) -> Void) {
+        image(for: entry) { img in
+            guard let img, let tiff = img.tiffRepresentation,
+                  let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { completion(nil); return }
+            completion(png)
+        }
+    }
+
     /// Calls back on the main queue, possibly synchronously from cache.
     func image(for entry: String, completion: @escaping (NSImage?) -> Void) {
         let host = Self.host(of: entry)
