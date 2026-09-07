@@ -2,8 +2,16 @@
   const api = typeof browser !== "undefined" ? browser : chrome;
   const original = new URLSearchParams(location.search).get("u") || "";
   let host = "";
-  try { host = new URL(original).hostname; } catch (_) {}
-  document.getElementById("host").textContent = host;
+  try { host = new URL(original).hostname.replace(/^www\./, ""); } catch (_) {}
+  const hostEl = document.getElementById("host"), favEl = document.getElementById("favicon");
+  hostEl.textContent = host || "this site";
+  document.getElementById("site").title = host;
+  if (host) {
+    // The site's own icon stands in for its name; fall back to the name if it has none.
+    favEl.onload = () => { favEl.hidden = false; hostEl.hidden = true; };
+    favEl.onerror = () => { favEl.hidden = true; hostEl.hidden = false; };
+    favEl.src = "https://" + host + "/favicon.ico";
+  }
 
   let state = null;
   let leaving = false;
@@ -17,9 +25,8 @@
     if (!state) return;
     if (!state.isBlocking) {
       card.classList.add("done");
-      document.getElementById("title").textContent = "Timer's done.";
       timeEl.textContent = "";
-      subEl.textContent = original ? "Taking you back…" : "";
+      subEl.textContent = original ? "Timer's done, taking you back…" : "Timer's done.";
       if (original && !leaving) { leaving = true; setTimeout(() => location.replace(original), 800); }
       return;
     }
@@ -29,8 +36,7 @@
     timeEl.hidden = mirror;
     const rem = formatRemaining(state.endsAt);
     timeEl.textContent = rem || "∞";
-    if (mirror) subEl.textContent = state.phase === "rest" ? "rest phase, still blocked" : "until the bar timer ends";
-    else subEl.textContent = state.phase === "rest" ? "rest phase, still blocked" : (rem ? "left on the BUSY Bar" : "no time limit on the bar");
+    subEl.textContent = state.phase === "rest" ? "You're on a BUSY rest" : "You're BUSY";
   }
 
   function setState(s) { state = s; render(); }
