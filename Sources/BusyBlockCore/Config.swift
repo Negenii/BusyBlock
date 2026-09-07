@@ -24,7 +24,11 @@ public struct Config: Codable, Equatable {
 
     public static let defaults = Config()
 
+    /// `BUSYBLOCK_CONFIG=/path/config.json` overrides the location (tests, dev).
     public static var defaultURL: URL {
+        if let override = ProcessInfo.processInfo.environment["BUSYBLOCK_CONFIG"], !override.isEmpty {
+            return URL(fileURLWithPath: override)
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("BusyBlock", isDirectory: true)
             .appendingPathComponent("config.json")
