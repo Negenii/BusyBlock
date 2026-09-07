@@ -20,6 +20,13 @@ const lastSiteURL = new Map();
 api.tabs.onUpdated.addListener((tabId, info) => {
   if (info.url && /^https?:/.test(info.url)) lastSiteURL.set(tabId, info.url);
 });
+// onBeforeNavigate fires before the request, i.e. before a DNR redirect
+// rewrites it; tabs.onUpdated only sees the extension page afterwards.
+if (api.webNavigation && api.webNavigation.onBeforeNavigate) {
+  api.webNavigation.onBeforeNavigate.addListener((d) => {
+    if (d.frameId === 0 && /^https?:/.test(d.url)) lastSiteURL.set(d.tabId, d.url);
+  });
+}
 api.tabs.onRemoved.addListener((tabId) => lastSiteURL.delete(tabId));
 let appliedKey = null;
 let rulesQueue = Promise.resolve();

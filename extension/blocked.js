@@ -7,6 +7,7 @@
     original = url || "";
     try { host = new URL(original).hostname.replace(/^www\./, ""); } catch (_) { host = ""; }
     hostEl.textContent = host || "this site";
+    hostEl.classList.toggle("generic", !host);
     document.getElementById("site").title = host;
   }
   setOriginal(original);
