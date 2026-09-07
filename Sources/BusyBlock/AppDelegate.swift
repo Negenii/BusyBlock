@@ -39,6 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }.store(in: &cancellables)
 
         stream = BarStream(host: store.config.barHost, token: store.config.barToken, log: log)
+        controller.onHostChange = { [weak self] host in
+            guard let self else { return }
+            self.log("bar host now \(host) (\(self.controller.foundVia.rawValue))")
+            self.stream.update(host: host, token: self.store.config.barToken)
+        }
         stream.onStatus = { [weak self] connected, error in
             guard let self else { return }
             if self.controller.streamConnected != connected {

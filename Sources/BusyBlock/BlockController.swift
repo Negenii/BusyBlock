@@ -15,12 +15,21 @@ final class BlockController: ObservableObject {
     private var estimator = EndsAtEstimator()
     /// While the ws stream delivers timer events, polling is only a safety net.
     var streamConnected = false
+    /// Host actually in use (configured or discovered) and how it was found.
+    @Published private(set) var activeHost: String
+    @Published private(set) var foundVia: BarLocator.Via = .configured
+    @Published private(set) var needsToken = false
+    /// Called when discovery switches hosts, so the stream can follow.
+    var onHostChange: ((String) -> Void)?
+    private var discovering = false
+    private var lastDiscovery = Date.distantPast
     private let maxFailures = 3
     var onChange: ((BlockState, BlockState) -> Void)?
 
     init(config: Config) {
         self.config = config
         self.client = BarClient(config: config)
+        self.activeHost = config.barHost
         self.state = .offline(domains: config.blockedDomains, showScreen: config.showScreenInBrowser)
     }
 
@@ -41,7 +50,14 @@ final class BlockController: ObservableObject {
         let hostChanged = new.barHost != config.barHost || new.barToken != config.barToken
         config = new
         client.update(config: new)
-        if hostChanged { failures = 0 }
+        if hostChanged {
+            failures = 0
+            activeHost = new.barHost
+            foundVia = .configured
+            needsToken = false
+            lastDiscovery = .distantPast
+            onHostChange?(new.barHost)
+        }
         // Re-evaluate with the new lists right away.
         var s = state
         s.domains = new.blockedDomains
@@ -95,7 +111,33 @@ final class BlockController: ObservableObject {
             if failures >= maxFailures {
                 estimator.reset()
                 apply(BlockDecision.evaluate(snapshot: nil, config: config, now: Date()))
+                await discoverIfNeeded()
             }
+        }
+    }
+
+    /// The configured host is silent: try USB, busybar.local, Bonjour. Runs at
+    /// most every 20 s while offline, off the main thread.
+    private func discoverIfNeeded() async {
+        guard config.autoDiscover, !discovering, !streamConnected,
+              Date().timeIntervalSince(lastDiscovery) > 20 else { return }
+        discovering = true
+        lastDiscovery = Date()
+        let configured = config.barHost, token = config.barToken
+        let found = await Task.detached(priority: .utility) {
+            BarLocator.locate(configured: configured, token: token)
+        }.value
+        discovering = false
+        guard let found else { return }
+        needsToken = found.needsToken
+        if found.host != activeHost {
+            activeHost = found.host
+            foundVia = found.via
+            client.use(host: found.host)
+            failures = 0
+            onHostChange?(found.host)
+        } else {
+            foundVia = found.via
         }
     }
 

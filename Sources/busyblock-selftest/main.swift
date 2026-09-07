@@ -15,6 +15,20 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--fetch" {
     }
 }
 
+// `busyblock-selftest --discover [configuredHost]` runs the full bar search and prints each step.
+if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--discover" {
+    let configured = CommandLine.arguments.count >= 3 ? CommandLine.arguments[2] : nil
+    let started = Date()
+    let found = BarLocator.locate(configured: configured, token: nil) { print("  \($0)") }
+    print(found.map { "found \($0.host) via \($0.via.rawValue) needsToken=\($0.needsToken)" } ?? "not found",
+          "in \(Int(Date().timeIntervalSince(started) * 1000)) ms")
+    exit(found == nil ? 2 : 0)
+}
+if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--browse" {
+    print(BarLocator.browse(timeout: 3))
+    exit(0)
+}
+
 var failures = 0
 var checks = 0
 func check(_ cond: @autoclosure () -> Bool, _ name: String, file: String = #file, line: Int = #line) {
@@ -99,6 +113,7 @@ do {
     let partial = try Config.decode(Data(#"{"barHost":"192.168.1.5","blockedDomains":["https://www.X.com/","bad"]}"#.utf8))
     check(partial.barHost == "192.168.1.5" && partial.localPort == 48321 && partial.blockedDomains == ["x.com"], "partial config gets defaults")
     check(partial.showScreenInBrowser == true, "showScreenInBrowser defaults on")
+    check(partial.autoDiscover == true, "autoDiscover defaults on")
     let noScreen = try Config.decode(Data(#"{"showScreenInBrowser":false}"#.utf8))
     let noScreenState = BlockDecision.evaluate(snapshot: BusySnapshot(kind: .simple, timeLeftMs: 1000), config: noScreen, now: now)
     check(!noScreenState.showScreen, "showScreen follows config")
@@ -121,6 +136,16 @@ do {
     check((try? RawHTTPClient.parse(Data("garbage".utf8))) == nil, "parse rejects garbage")
     let chunked = Data("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\n{\"a\":\r\n2\r\n1}\r\n0\r\n\r\n".utf8)
     check((try? RawHTTPClient.parse(chunked)) == Data("{\"a\":1}".utf8), "parse chunked body")
+}
+
+// MARK: bar locator candidates
+do {
+    let c = BarLocator.candidates(configured: "10.0.4.20", discovered: ["10.1.1.76", "10.0.4.20"])
+    check(c.map { $0.0 } == ["10.0.4.20", "busybar.local", "10.1.1.76"], "candidates deduped in order")
+    check(c.map { $0.1 } == [.configured, .mdns, .bonjour], "candidate sources")
+    let d = BarLocator.candidates(configured: "  ")
+    check(d.map { $0.0 } == ["10.0.4.20", "busybar.local"] && d[0].1 == .usb, "blank configured host skipped")
+    check(BarLocator.probe(host: "127.0.0.1:1", token: nil, timeout: 0.5) == .unreachable, "closed port is unreachable")
 }
 
 // MARK: domains

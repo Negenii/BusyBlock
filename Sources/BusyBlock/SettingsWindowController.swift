@@ -14,6 +14,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     private let tokenField = NSTextField()
     private let intervalPopup = NSPopUpButton()
     private let restCheck = NSButton(checkboxWithTitle: "Block during rest phase too", target: nil, action: nil)
+    private let discoverCheck = NSButton(checkboxWithTitle: "Find the bar automatically (USB, busybar.local, Bonjour) if this host is silent", target: nil, action: nil)
     private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser (otherwise a plain countdown)", target: nil, action: nil)
     private let statusLabel = NSTextField(labelWithString: "")
     private let appsTable = NSTableView()
@@ -25,7 +26,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 690),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 730),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "BusyBlock Settings"
         w.isReleasedWhenClosed = false
@@ -57,6 +58,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         root.addArrangedSubview(row("Host", hostField))
         tokenField.placeholderString = "Wi-Fi API token, empty over USB"
         root.addArrangedSubview(row("Token", tokenField))
+        root.addArrangedSubview(discoverCheck)
         for s in [1, 2, 3, 5, 10] { intervalPopup.addItem(withTitle: "\(s) s") }
         root.addArrangedSubview(row("Poll every", intervalPopup))
         root.addArrangedSubview(restCheck)
@@ -73,6 +75,8 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         appsTable.dataSource = self
         appsTable.delegate = self
         appsTable.allowsMultipleSelection = true
+        appsTable.registerForDraggedTypes([.fileURL])
+        appsTable.setDraggingSourceOperationMask(.copy, forLocal: false)
         let scroll = NSScrollView()
         scroll.documentView = appsTable
         scroll.hasVerticalScroller = true
@@ -80,6 +84,10 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         scroll.translatesAutoresizingMaskIntoConstraints = false
         scroll.heightAnchor.constraint(equalToConstant: 130).isActive = true
         root.addArrangedSubview(scroll)
+        let dropHint = NSTextField(labelWithString: "Drop apps from Finder onto the list, or:")
+        dropHint.textColor = .secondaryLabelColor
+        dropHint.font = .systemFont(ofSize: 11)
+        root.addArrangedSubview(dropHint)
         let appButtons = NSStackView()
         appButtons.orientation = .horizontal
         let addApp = NSButton(title: "Add App…", target: self, action: #selector(pickApp))
@@ -162,6 +170,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         let idx = [1, 2, 3, 5, 10].firstIndex(of: Int(c.pollIntervalSec.rounded())) ?? 1
         intervalPopup.selectItem(at: idx)
         restCheck.state = c.blockDuringRest ? .on : .off
+        discoverCheck.state = c.autoDiscover ? .on : .off
         screenCheck.state = c.showScreenInBrowser ? .on : .off
         apps = c.blockedApps
         appsTable.reloadData()
@@ -185,6 +194,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         c.barToken = tokenField.stringValue.isEmpty ? nil : tokenField.stringValue
         c.pollIntervalSec = Double([1, 2, 3, 5, 10][max(0, intervalPopup.indexOfSelectedItem)])
         c.blockDuringRest = restCheck.state == .on
+        c.autoDiscover = discoverCheck.state == .on
         c.showScreenInBrowser = screenCheck.state == .on
         c.blockedApps = apps
         c.blockedDomains = Array(Set(domainsView.string.split(whereSeparator: \.isNewline)
@@ -224,6 +234,31 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     // MARK: Table
 
     func numberOfRows(in tableView: NSTableView) -> Int { apps.count }
+
+    // MARK: Drop apps from Finder
+
+    private func droppedAppURLs(_ info: NSDraggingInfo) -> [URL] {
+        let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return urls.filter { $0.pathExtension == "app" && Bundle(url: $0)?.bundleIdentifier != nil }
+    }
+
+    func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int,
+                   proposedDropOperation op: NSTableView.DropOperation) -> NSDragOperation {
+        guard !droppedAppURLs(info).isEmpty else { return [] }
+        tableView.setDropRow(-1, dropOperation: .on)   // highlight the whole list
+        return .copy
+    }
+
+    func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int,
+                   dropOperation: NSTableView.DropOperation) -> Bool {
+        var added = false
+        for url in droppedAppURLs(info) {
+            if let id = Bundle(url: url)?.bundleIdentifier, !apps.contains(id) { apps.append(id); added = true }
+        }
+        if added { appsTable.reloadData() }
+        return added
+    }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let id = apps[row]

@@ -26,6 +26,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         buildMenu()
         controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         controller.$lastError.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
+        controller.$activeHost.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         tick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.refresh() }
         }
@@ -73,9 +74,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         item.button?.title = s.isBlocking ? " " + remaining(s) : ""
 
-        if !s.barConnected {
-            statusItem.title = "Bar unreachable"
-            detailItem.title = controller.lastError.map { "\(store.config.barHost): \($0.prefix(60))" } ?? store.config.barHost
+        let via = controller.foundVia == .configured ? "" : " · found via \(controller.foundVia.rawValue)"
+        if controller.needsToken {
+            statusItem.title = "Bar needs an API token"
+            detailItem.title = "\(controller.activeHost)\(via) · paste the token in Settings"
+        } else if !s.barConnected {
+            statusItem.title = store.config.autoDiscover ? "Looking for the bar…" : "Bar unreachable"
+            detailItem.title = controller.lastError.map { "\(controller.activeHost): \($0.prefix(60))" } ?? controller.activeHost
         } else if s.isBlocking {
             statusItem.title = "Blocking · \(remaining(s).isEmpty ? "no limit" : remaining(s) + " left")"
             detailItem.title = "\(store.config.blockedApps.count) apps, \(s.domains.count) domains"
@@ -84,7 +89,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             detailItem.title = "Bar connected"
         } else {
             statusItem.title = s.phase == "rest" ? "Rest phase" : "Idle"
-            detailItem.title = "Bar connected · \(store.config.barHost)"
+            detailItem.title = "Bar connected · \(controller.activeHost)\(via)"
         }
     }
 

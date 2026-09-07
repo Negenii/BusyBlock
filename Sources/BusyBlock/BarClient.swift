@@ -4,7 +4,7 @@ import BusyBlockCore
 /// Fetches `/api/busy/snapshot` from the bar (or busybar-manager, which proxies it)
 /// over a plain socket with a hard timeout. See RawHTTPClient for why not URLSession.
 final class BarClient {
-    private var host: String
+    private(set) var host: String
     private var token: String?
     private let timeout: TimeInterval = 3
 
@@ -19,6 +19,8 @@ final class BarClient {
         host = config.barHost
         token = config.barToken
     }
+
+    func use(host: String) { self.host = host }
 
     /// GET /api/time → {"timestamp":"2026-09-07T22:29:02+01:00"} → ms since epoch.
     func fetchBarTimeMs() async throws -> Int {
