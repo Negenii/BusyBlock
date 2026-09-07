@@ -2,7 +2,6 @@
   const api = typeof browser !== "undefined" ? browser : chrome;
   const dot = document.getElementById("dot"), line = document.getElementById("line");
   const detail = document.getElementById("detail");
-  const portInput = document.getElementById("port");
   const panel = document.getElementById("panel");
   const device = document.getElementById("device");
   const timeEl = document.getElementById("time");
@@ -11,7 +10,8 @@
   let lastFrameAt = 0;
   let currentPort = DEFAULT_PORT;
   let siteHost = "";
-  const siteBox = document.getElementById("site"), siteHostEl = document.getElementById("siteHost"), siteBtn = document.getElementById("siteBtn");
+  const siteBox = document.getElementById("site"), siteHostEl = document.getElementById("siteHost");
+  const siteBtn = document.getElementById("siteBtn"), siteBadge = document.getElementById("siteBadge");
 
   // Current tab's host → "Block this site while busy" / "Blocked · remove".
   api.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
@@ -28,17 +28,19 @@
     return (state.domains || []).find((d) => shouldBlock("https://" + siteHost + "/", { isBlocking: true, domains: [d] })) || null;
   }
 
+  // A blocked site only shows a badge: removing it is done in the helper's
+  // Settings on purpose, so a two-click unblock isn't available mid-session.
   function renderSite() {
     if (!siteHost) return;
     const entry = listed();
-    siteBtn.className = entry ? "on" : "";
-    siteBtn.textContent = entry ? "Blocked · remove" : "Block while busy";
-    siteBtn.disabled = !state || state.phase === "offline" && !state.barConnected && !(state.domains || []).length;
+    siteBadge.hidden = !entry;
+    siteBtn.hidden = !!entry;
+    siteBtn.disabled = !state;
   }
 
   siteBtn.addEventListener("click", () => {
-    const entry = listed();
-    const body = entry ? { remove: entry } : { add: siteHost };
+    if (listed()) return;
+    const body = { add: siteHost };
     siteBtn.disabled = true;
     fetch("http://127.0.0.1:" + currentPort + "/domains", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
@@ -82,12 +84,8 @@
     if (feed) feed.close();
     feed = subscribeEvents(port, (s) => { state = s; render(); }, (frame) => { lastFrameAt = Date.now(); device.classList.remove("idle"); drawFrame(panel, frame); });
   }
-  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { currentPort = Number(v.port) || DEFAULT_PORT; portInput.value = currentPort; openFeed(currentPort); });
-  document.getElementById("save").addEventListener("click", () => {
-    const p = Number(portInput.value) || DEFAULT_PORT;
-    currentPort = p;
-    api.storage.local.set({ port: p }).then(() => { openFeed(p); setTimeout(refresh, 300); });
-  });
+  // The helper port can still be overridden via storage.local {port} (no UI).
+  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { currentPort = Number(v.port) || DEFAULT_PORT; openFeed(currentPort); });
 
   function refresh() {
     api.runtime.sendMessage({ type: "getState" }).then((s) => { state = s; render(); }).catch(() => {});

@@ -12,12 +12,10 @@
     .dot { width: 10px; height: 10px; border-radius: 50%; background: #9a9a96; }
     .dot.on { background: var(--accent); }
     .dot.idle { background: #30a46c; }
-    .row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; }
-    input { width: 70px; font: inherit; padding: 2px 4px; }
     .site { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; display: flex; align-items: center; gap: 10px; }
     .site .host { flex: 1; min-width: 90px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .site button { font: inherit; font-size: 12px; padding: 4px 10px; white-space: nowrap; flex-shrink: 0; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
-    .site button.on { background: transparent; color: var(--fg); border-color: var(--line); }
+    .site .badge { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
     .site button:disabled { opacity: 0.5; cursor: default; }
   </style>
 </head>
@@ -31,9 +29,9 @@
   <div class="muted" id="detail" style="font-size:13px;margin-top:4px"></div>
   <div class="site" id="site" hidden>
     <span class="host mono" id="siteHost"></span>
-    <button id="siteBtn"></button>
+    <button id="siteBtn" hidden>Block while busy</button>
+    <span class="badge" id="siteBadge" hidden>Blocked while busy</span>
   </div>
-  <div class="row muted"><span>Helper port</span><input id="port" type="number" min="1024" max="65535"><button id="save">Save</button></div>
   <script src="shared.js"></script>
   <script src="led.js"></script>
   <script src="popup.js"></script>
