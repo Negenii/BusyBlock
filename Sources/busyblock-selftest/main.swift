@@ -223,5 +223,50 @@ do {
     check(abs(r.clockOffset! - 0.131) < 0.001, "replay: offset converges to best sighting")
 }
 
+// MARK: protobuf / bar state message / frames
+do {
+    let pb = Protobuf.self
+    // Frame: front 4x1 RGB888, RLE: 3 repeats of red then 1 verbatim green block.
+    let rle = Data([0x03, 255, 0, 0, 0x81, 0, 255, 0])
+    let frame = pb.field(1, varint: 0) + pb.field(2, varint: 4) + pb.field(3, varint: 1)
+        + pb.field(4, varint: 1) + pb.field(5, varint: 0) + pb.field(6, bytes: rle)
+    let timerJSON = Data(#"{"snapshot":{"type":"SIMPLE","card_id":"0","time_left_ms":9000,"is_paused":false}}"#.utf8)
+    let timer = pb.field(1, bytes: pb.field(1, varint: 0) + pb.field(2, bytes: timerJSON))
+    let updates = pb.field(2, bytes: pb.field(10, bytes: frame)) + pb.field(2, bytes: pb.field(12, bytes: timer))
+    let state = pb.field(1, fixed64: 1_788_000_000_123) + updates
+    let msg = try BarStateMessage.decode(state)
+    check(msg.timestampMs == 1_788_000_000_123, "state envelope timestamp")
+    check(msg.timer?.kind == .simple && msg.timer?.timeLeftMs == 9000, "timer json inside protobuf")
+    check(msg.timer?.timestampMs == 1_788_000_000_123, "timer gets envelope timestamp")
+    check(msg.frames.count == 1 && msg.frames[0].width == 4 && msg.frames[0].rgb == Data([255,0,0, 255,0,0, 255,0,0, 0,255,0]), "RLE frame decoded to RGB")
+    let err = pb.field(3, bytes: Data())   // Error{} = RESOURCE_LIMIT/FATAL
+    let errMsg = try BarStateMessage.decode(err)
+    check(errMsg.resourceLimit, "resource limit error")
+    check((try? Protobuf.fields(Data([0x08]))) == nil, "truncated varint throws")
+    check(RLE.decode(Data([0x82, 1, 2, 0x02, 9]), blockSize: 1) == Data([1, 2, 9, 9]), "RLE mixed")
+    // L8 frame, plain.
+    let l8 = pb.field(1, varint: 1) + pb.field(2, varint: 2) + pb.field(3, varint: 1) + pb.field(5, varint: 1) + pb.field(6, bytes: Data([0, 200]))
+    let l8Frame = try BarFrame.decode(l8)
+    check(l8Frame.rgb == Data([0,0,0, 200,200,200]), "L8 expands to RGB")
+} catch { failures += 1; print("FAIL: protobuf \(error)") }
+
+// MARK: websocket codec
+do {
+    check(WebSocketCodec.expectedAccept(for: "dGhlIHNhbXBsZSBub25jZQ==") == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", "RFC 6455 accept key")
+    check(WebSocketCodec.checkHandshake(responseHead: "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", key: "dGhlIHNhbXBsZSBub25jZQ==") == nil, "handshake accepted")
+    check(WebSocketCodec.checkHandshake(responseHead: "HTTP/1.1 400 Bad Request\r\n", key: "x") != nil, "handshake rejects non-101")
+    let f = WebSocketCodec.Frame(opcode: .text, payload: Data(#"{"enable":true}"#.utf8))
+    let wire = WebSocketCodec.encode(f)
+    check(wire[1] & 0x80 != 0, "client frame masked")
+    let (back, used) = try WebSocketCodec.decode(wire)!
+    check(back == f && used == wire.count, "frame roundtrip")
+    // Server-style unmasked binary frame with 16-bit length.
+    var big = Data([0x82, 126, 0x01, 0x00]); big.append(Data(repeating: 7, count: 256))
+    let (bf, bu) = try WebSocketCodec.decode(big + Data([0x8a, 0x00]))!
+    check(bf.opcode == .binary && bf.payload.count == 256 && bu == 260, "unmasked 16-bit length frame")
+    let incomplete = try WebSocketCodec.decode(Data([0x82, 126, 0x01]))
+    check(incomplete == nil, "incomplete frame returns nil")
+} catch { failures += 1; print("FAIL: websocket \(error)") }
+
 if failures == 0 { print("all \(checks) checks passed"); exit(0) }
 print("\(failures) of \(checks) checks failed"); exit(1)
