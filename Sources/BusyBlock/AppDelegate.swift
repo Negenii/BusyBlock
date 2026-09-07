@@ -115,9 +115,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settings?.window?.makeKeyAndOrderFront(nil)
     }
 
+    private static let logURL = Config.defaultURL.deletingLastPathComponent().appendingPathComponent("busyblock.log")
+
+    /// stdout plus ~/Library/Application Support/BusyBlock/busyblock.log (kept under 1 MB).
     private func log(_ s: String) {
         let ts = ISO8601DateFormatter().string(from: Date())
-        print("[\(ts)] \(s)")
+        let line = "[\(ts)] \(s)\n"
+        print(line, terminator: "")
         fflush(stdout)
+        let url = Self.logURL
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let size = attrs[.size] as? Int, size > 1_000_000 {
+            try? FileManager.default.removeItem(at: url)
+        }
+        if let h = try? FileHandle(forWritingTo: url) {
+            h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close()
+        } else {
+            try? Data(line.utf8).write(to: url)
+        }
     }
 }
