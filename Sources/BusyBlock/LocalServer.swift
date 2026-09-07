@@ -212,7 +212,7 @@ final class LocalServer {
         } else if path == "/state" {
             let ua = Self.header(requestHead, "user-agent") ?? "?"
             let kind = ua.contains("Chrome") ? "chrome" : ua.contains("Safari") ? "safari" : ua.contains("Firefox") ? "firefox" : "other"
-            if Date().timeIntervalSince(lastPollLog[kind] ?? .distantPast) > 60 {
+            if Date().timeIntervalSince(lastPollLog[kind] ?? .distantPast) > 10 {
                 lastPollLog[kind] = Date()
                 log("state polled by \(kind) worker")
             }

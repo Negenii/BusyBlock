@@ -39,10 +39,17 @@ async function fetchState() {
 }
 
 function sync() {
-  // Coalesce: interval, alarm and content scripts all call this; one request at a time.
+  // Coalesce: interval, alarm and content scripts all call this; one request at
+  // a time. A request that neither resolves nor aborts (seen in Safari after the
+  // background was suspended mid-fetch) must not pin every later sync, so the
+  // slot frees itself after 3.5 s regardless.
   if (inflight) return inflight;
-  inflight = syncNow().finally(() => { inflight = null; });
-  return inflight;
+  const slot = Promise.race([
+    syncNow(),
+    new Promise((resolve) => setTimeout(() => resolve(lastState), 3500)),
+  ]).catch(() => lastState).finally(() => { if (inflight === slot) inflight = null; });
+  inflight = slot;
+  return slot;
 }
 
 async function syncNow() {
