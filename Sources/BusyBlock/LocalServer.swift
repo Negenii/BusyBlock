@@ -18,6 +18,7 @@ final class LocalServer {
     private let queue = DispatchQueue(label: "me.negenii.BusyBlock.server")
     private let log: (String) -> Void
     private var sseClients: [ObjectIdentifier: NWConnection] = [:]
+    private var lastPollLog: [String: Date] = [:]
 
     init(port: UInt16, log: @escaping (String) -> Void = { print($0) }, stateProvider: @escaping () -> BlockState) {
         self.port = port
@@ -209,6 +210,12 @@ final class LocalServer {
             status = "405 Method Not Allowed"
             body = Data(#"{"error":"GET only"}"#.utf8)
         } else if path == "/state" {
+            let ua = Self.header(requestHead, "user-agent") ?? "?"
+            let kind = ua.contains("Chrome") ? "chrome" : ua.contains("Safari") ? "safari" : ua.contains("Firefox") ? "firefox" : "other"
+            if Date().timeIntervalSince(lastPollLog[kind] ?? .distantPast) > 60 {
+                lastPollLog[kind] = Date()
+                log("state polled by \(kind) worker")
+            }
             body = stateProvider().wireJSON()
         } else if path == "/health" {
             body = Data(#"{"ok":true}"#.utf8)

@@ -111,12 +111,14 @@ function enforceOpenTabs(state) {
 
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const type = message && message.type;
+  // Answer within 4 s no matter what the helper fetch does.
+  const bounded = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r(null), 4000))]);
   if (type === "getState") {
-    sync().then((s) => sendResponse(s || lastState || offlineState()));
+    bounded(sync()).then((s) => sendResponse(s || lastState || offlineState()));
     return true;
   }
   if (type === "shouldBlock") {
-    sync().then((s) => sendResponse({ block: shouldBlock(message.url, s || lastState), page: api.runtime.getURL("blocked.html") }));
+    bounded(sync()).then((s) => sendResponse({ block: shouldBlock(message.url, s || lastState), page: api.runtime.getURL("blocked.html") }));
     return true;
   }
   return false;
