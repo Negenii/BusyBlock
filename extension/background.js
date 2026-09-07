@@ -33,9 +33,16 @@ function schedule() {
 }
 
 async function fetchState() {
-  const res = await fetch(stateURL(port), { cache: "no-store" });
-  if (!res.ok) throw new Error("helper responded " + res.status);
-  return res.json();
+  // Hard timeout: a stuck connection pool must not freeze sync() forever.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 3000);
+  try {
+    const res = await fetch(stateURL(port), { cache: "no-store", signal: ctl.signal });
+    if (!res.ok) throw new Error("helper responded " + res.status);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function sync() {
@@ -79,13 +86,22 @@ function updateBadge(state) {
 
 function updateRules(state) {
   const domains = state.isBlocking && Array.isArray(state.domains) ? state.domains : [];
-  const key = domains.join("\n");
+  const blockedPage = api.runtime.getURL("blocked.html");
+  // The extension's base URL is part of the key: Safari assigns a new UUID on
+  // every reinstall, and dynamic rules persist, so stale rules would redirect
+  // to an origin that no longer exists (blank tab).
+  const key = blockedPage + "\n" + domains.join("\n");
   rulesQueue = rulesQueue.then(async () => {
     if (key === appliedKey) return;
     const existing = await api.declarativeNetRequest.getDynamicRules();
+    const stale = existing.some((r) => r.action && r.action.redirect && r.action.redirect.regexSubstitution
+      && !r.action.redirect.regexSubstitution.startsWith(blockedPage));
+    const same = !stale && existing.length === domains.length * 2 && domains.every((d) =>
+      existing.some((r) => r.condition && r.condition.urlFilter === "||" + (d.split("/")[0]) + "^"));
+    if (same && existing.length > 0) { appliedKey = key; return; }
     await api.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: existing.map((r) => r.id),
-      addRules: rulesFor(domains, api.runtime.getURL("blocked.html"))
+      addRules: rulesFor(domains, blockedPage)
     });
     appliedKey = key;
   }).catch((e) => { appliedKey = null; console.error("rules update failed", e); });
