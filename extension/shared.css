@@ -1,0 +1,11 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f6f4; --fg: #1a1a1a; --muted: #6b6b6b; --accent: #e5484d; --card: #ffffff; --line: #e2e2df;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #151515; --fg: #f0f0ee; --muted: #9a9a96; --card: #1f1f1f; --line: #2c2c2c; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
