@@ -8,6 +8,7 @@
   const timeEl = document.getElementById("time");
   let state = null;
   let feed = null;
+  let lastFrameAt = 0;
   let currentPort = DEFAULT_PORT;
   let siteHost = "";
   const siteBox = document.getElementById("site"), siteHostEl = document.getElementById("siteHost"), siteBtn = document.getElementById("siteBtn");
@@ -55,6 +56,10 @@
   function render() {
     if (!state) return;
     renderSite();
+    if (state.isBlocking && state.showScreen !== false && Date.now() - lastFrameAt > 2000) {
+      device.classList.remove("idle");
+      drawFrame(panel, clockFrame(state.endsAt ? formatRemaining(state.endsAt) : "∞"));
+    }
     const mirror = state.showScreen !== false;
     device.hidden = !mirror;
     timeEl.hidden = mirror || !state.isBlocking;
@@ -81,7 +86,7 @@
 
   function openFeed(port) {
     if (feed) feed.close();
-    feed = subscribeEvents(port, (s) => { state = s; render(); }, (frame) => { device.classList.remove("idle"); drawFrame(panel, frame); });
+    feed = subscribeEvents(port, (s) => { state = s; render(); }, (frame) => { lastFrameAt = Date.now(); device.classList.remove("idle"); drawFrame(panel, frame); });
   }
   api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { currentPort = Number(v.port) || DEFAULT_PORT; portInput.value = currentPort; openFeed(currentPort); });
   document.getElementById("save").addEventListener("click", () => {

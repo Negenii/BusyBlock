@@ -12,6 +12,7 @@ const LIVE_POLL_MS = 1000;   // loopback; the helper itself reacts to bar events
 let lastState = null;
 let port = DEFAULT_PORT;
 let fetchSeq = 0;          // sync() calls overlap (interval, alarm, content scripts); ignore stale responses
+let inflight = null;       // the one request in flight (declared before schedule() runs below)
 let appliedKey = null;
 let rulesQueue = Promise.resolve();
 
@@ -37,7 +38,14 @@ async function fetchState() {
   return res.json();
 }
 
-async function sync() {
+function sync() {
+  // Coalesce: interval, alarm and content scripts all call this; one request at a time.
+  if (inflight) return inflight;
+  inflight = syncNow().finally(() => { inflight = null; });
+  return inflight;
+}
+
+async function syncNow() {
   const seq = ++fetchSeq;
   try {
     const state = await fetchState();

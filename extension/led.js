@@ -38,6 +38,48 @@ function drawFrame(canvas, frame) {
   }
 }
 
+// 5×7 pixel digits, drawn as LEDs while no live frame is available (tab was
+// in the background, feed reconnecting). Same grid as the bar: 72×16.
+const LED_FONT = {
+  "0": ["01110","10001","10011","10101","11001","10001","01110"],
+  "1": ["00100","01100","00100","00100","00100","00100","01110"],
+  "2": ["01110","10001","00001","00010","00100","01000","11111"],
+  "3": ["11111","00010","00100","00010","00001","10001","01110"],
+  "4": ["00010","00110","01010","10010","11111","00010","00010"],
+  "5": ["11111","10000","11110","00001","00001","10001","01110"],
+  "6": ["00110","01000","10000","11110","10001","10001","01110"],
+  "7": ["11111","00001","00010","00100","01000","01000","01000"],
+  "8": ["01110","10001","10001","01110","10001","10001","01110"],
+  "9": ["01110","10001","10001","01111","00001","00010","01100"],
+  ":": ["00000","00100","00100","00000","00100","00100","00000"],
+  "∞": ["00000","00000","01010","10101","10101","01010","00000"],
+  "-": ["00000","00000","00000","11111","00000","00000","00000"],
+};
+
+// Builds a 72×16 RGB frame with `text` centred in white LEDs (digits doubled to 10×14).
+function clockFrame(text, w, h) {
+  w = w || 72; h = h || 16;
+  const rgb = new Uint8Array(w * h * 3);
+  const scale = 2, gap = 2;
+  const glyphs = Array.from(text).map((c) => LED_FONT[c] || LED_FONT["-"]);
+  const width = glyphs.length * 5 * scale + (glyphs.length - 1) * gap;
+  let x0 = Math.max(0, Math.floor((w - width) / 2));
+  const y0 = Math.floor((h - 7 * scale) / 2);
+  for (const g of glyphs) {
+    for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) {
+      if (g[r][c] !== "1") continue;
+      for (let dy = 0; dy < scale; dy++) for (let dx = 0; dx < scale; dx++) {
+        const x = x0 + c * scale + dx, y = y0 + r * scale + dy;
+        if (x < 0 || x >= w || y < 0 || y >= h) continue;
+        const i = (y * w + x) * 3;
+        rgb[i] = rgb[i + 1] = rgb[i + 2] = 255;
+      }
+    }
+    x0 += 5 * scale + gap;
+  }
+  return { w, h, rgb };
+}
+
 // The panel's dominant lit colour, for tinting the page. Most saturated
 // pixel wins, so white digits don't wash the red out.
 function dominantColor(frame) {
@@ -55,15 +97,21 @@ function dominantColor(frame) {
 
 // Subscribes to http://127.0.0.1:<port>/events. onState(state) and
 // onFrame(frame) fire as events arrive; the returned object has close().
-function subscribeEvents(port, onState, onFrame) {
-  let es = null, closed = false;
-  try { es = new EventSource("http://127.0.0.1:" + (port || DEFAULT_PORT) + "/events"); } catch (_) { return { close() {} }; }
-  es.addEventListener("state", (e) => { try { onState(JSON.parse(e.data)); } catch (_) {} });
-  es.addEventListener("frame", (e) => { try { onFrame(decodeFrame(JSON.parse(e.data))); } catch (_) {} });
-  es.onerror = () => { /* EventSource reconnects on its own (retry: 2000) */ };
+function subscribeEvents(port, onState, onFrame, onStatus) {
+  let es = null, closed = false, frames = 0, errors = 0;
+  const report = (text) => { if (onStatus) onStatus(text); };
+  try { es = new EventSource("http://127.0.0.1:" + (port || DEFAULT_PORT) + "/events"); } catch (e) { report("no EventSource: " + e); return { close() {} }; }
+  report("connecting…");
+  es.onopen = () => report("live");
+  es.addEventListener("state", (e) => { try { onState(JSON.parse(e.data)); } catch (err) { errors++; report("bad state event: " + err); } });
+  es.addEventListener("frame", (e) => {
+    try { onFrame(decodeFrame(JSON.parse(e.data))); frames++; if (frames % 10 === 1) report("live · " + frames + " frames"); }
+    catch (err) { errors++; report("frame error: " + err); }
+  });
+  es.onerror = () => { errors++; report("reconnecting (" + errors + ")… readyState=" + es.readyState); };
   return { close() { closed = true; if (es) es.close(); } };
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { decodeFrame, dominantColor };
+  module.exports = { decodeFrame, dominantColor, clockFrame };
 }

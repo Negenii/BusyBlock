@@ -43,7 +43,10 @@ final class LocalServer {
     }
 
     private func dropSSE(_ id: ObjectIdentifier) {
-        if let c = sseClients.removeValue(forKey: id) { c.cancel() }
+        if let c = sseClients.removeValue(forKey: id) {
+            c.cancel()
+            log("sse client gone (\(sseClients.count) left)")
+        }
     }
 
     private func beginSSE(_ conn: NWConnection) {
@@ -140,6 +143,9 @@ final class LocalServer {
         let fromExtension = OriginPolicy.isExtension(origin)
 
         if method == "GET" && path == "/events" {
+            let ua = Self.header(requestHead, "user-agent") ?? "?"
+            let n = sseClients.count + 1
+            log("sse client connected (\(n) total)\(n > 4 ? " — browsers cap ~6 connections per host, background tabs should have let go" : ""): \(ua.prefix(60))")
             beginSSE(conn)
             return
         }

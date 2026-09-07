@@ -1,7 +1,17 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 global.DEFAULT_PORT = 48321;
-const { decodeFrame, dominantColor } = require("../../extension/led.js");
+const { decodeFrame, dominantColor, clockFrame } = require("../../extension/led.js");
+
+test("clockFrame draws white LEDs centred on the 72x16 grid", () => {
+  const f = clockFrame("20:47");
+  assert.equal(f.rgb.length, 72 * 16 * 3);
+  let lit = 0, minX = 72, maxX = -1;
+  for (let i = 0; i < f.rgb.length; i += 3) if (f.rgb[i]) { lit++; const x = (i / 3) % 72; minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+  assert.ok(lit > 100, "some pixels lit");
+  assert.ok(minX > 4 && maxX < 68, "text centred with margins");
+  assert.equal(clockFrame("").rgb.reduce((a, b) => a + b, 0), 0);
+});
 
 test("dominantColor prefers saturated pixels over white", () => {
   const rgb = new Uint8Array([255, 255, 255, 220, 40, 40, 0, 0, 0]);
