@@ -87,8 +87,12 @@
     if (feed) feed.close();
     feed = subscribeEvents(port, (s) => { state = s; render(); }, (frame) => { lastFrameAt = Date.now(); device.classList.remove("idle"); drawFrame(panel, frame); });
   }
-  // The helper port can still be overridden via storage.local {port} (no UI).
-  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { currentPort = Number(v.port) || DEFAULT_PORT; openFeed(currentPort); });
+  // Default port immediately; storage.local {port} is an optional override (no UI).
+  openFeed(currentPort);
+  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => {
+    const p = Number(v.port) || DEFAULT_PORT;
+    if (p !== currentPort) { currentPort = p; openFeed(p); }
+  }).catch(() => {});
 
   function refresh() {
     api.runtime.sendMessage({ type: "getState" }).then((s) => { state = s; render(); }).catch(() => {});

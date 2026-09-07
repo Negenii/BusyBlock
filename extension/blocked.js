@@ -82,7 +82,14 @@
   });
   window.addEventListener("pagehide", disconnectFeed);
 
-  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => { port = Number(v.port) || DEFAULT_PORT; loadFavicon(port); connectFeed(); });
+  // Start on the default port right away; storage is only an optional override
+  // (in Safari it answers through the background process, which may be asleep).
+  loadFavicon(port);
+  connectFeed();
+  api.storage.local.get({ port: DEFAULT_PORT }).then((v) => {
+    const p = Number(v.port) || DEFAULT_PORT;
+    if (p !== port) { port = p; disconnectFeed(); loadFavicon(port); connectFeed(); }
+  }).catch(() => {});
 
   // Fallback through the worker (also confirms rules are in place).
   function refresh() {
