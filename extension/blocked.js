@@ -37,7 +37,17 @@
 
   // Live feed from the helper: instant state changes and the bar's own screen.
   api.storage.local.get({ port: DEFAULT_PORT }).then((v) => {
-    subscribeEvents(v.port, setState, (frame) => { device.classList.remove("idle"); drawFrame(panel, frame); });
+    let lastTint = 0;
+    subscribeEvents(v.port, setState, (frame) => {
+      device.classList.remove("idle");
+      drawFrame(panel, frame);
+      const now = Date.now();
+      if (now - lastTint > 1000) {
+        lastTint = now;
+        const c = dominantColor(frame);
+        if (c) document.documentElement.style.setProperty("--glow", c.join(", "));
+      }
+    });
   });
 
   // Fallback through the worker (also confirms rules are in place).

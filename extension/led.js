@@ -38,6 +38,21 @@ function drawFrame(canvas, frame) {
   }
 }
 
+// The panel's dominant lit colour, for tinting the page. Most saturated
+// pixel wins, so white digits don't wash the red out.
+function dominantColor(frame) {
+  const { rgb } = frame;
+  let best = null, bestScore = 0;
+  for (let i = 0; i < rgb.length; i += 3) {
+    const r = rgb[i], g = rgb[i + 1], b = rgb[i + 2];
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (max < 40) continue;
+    const score = (max - min) * max;
+    if (score > bestScore) { bestScore = score; best = [r, g, b]; }
+  }
+  return best;
+}
+
 // Subscribes to http://127.0.0.1:<port>/events. onState(state) and
 // onFrame(frame) fire as events arrive; the returned object has close().
 function subscribeEvents(port, onState, onFrame) {
@@ -50,5 +65,5 @@ function subscribeEvents(port, onState, onFrame) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { decodeFrame };
+  module.exports = { decodeFrame, dominantColor };
 }

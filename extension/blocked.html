@@ -5,8 +5,26 @@
   <title>Blocked · BusyBlock</title>
   <link rel="stylesheet" href="shared.css">
   <style>
-    main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-    .card { width: min(560px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px 32px 32px; text-align: center; }
+    :root { --glow: 229, 72, 77; }
+    body { background: #0e0c0c; overflow: hidden; }
+    /* Slow red wash behind the card, like the glow around BUSY on the panel.
+       Three blurred blobs drift on their own paths; the tint follows the bar. */
+    .bg { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(60px); opacity: 0.85; transition: opacity 1s; }
+    .blob { position: absolute; width: 55vmax; height: 55vmax; border-radius: 50%;
+      background: radial-gradient(circle at 50% 50%, rgba(var(--glow), 0.75) 0%, rgba(var(--glow), 0.25) 40%, rgba(var(--glow), 0) 70%);
+      transition: background 1.5s; will-change: transform; }
+    .b1 { top: -10%; left: -10%; animation: drift1 26s ease-in-out infinite; }
+    .b2 { bottom: -15%; right: -5%; animation: drift2 32s ease-in-out infinite; }
+    .b3 { top: 30%; left: 35%; width: 40vmax; height: 40vmax; opacity: 0.7; animation: drift3 22s ease-in-out infinite; }
+    @keyframes drift1 { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(28vw, 18vh) scale(1.25); } 100% { transform: translate(0, 0) scale(1); } }
+    @keyframes drift2 { 0% { transform: translate(0, 0) scale(1.1); } 50% { transform: translate(-26vw, -22vh) scale(0.9); } 100% { transform: translate(0, 0) scale(1.1); } }
+    @keyframes drift3 { 0% { transform: translate(0, 0); } 33% { transform: translate(-18vw, 12vh); } 66% { transform: translate(14vw, -16vh); } 100% { transform: translate(0, 0); } }
+    .pulse { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, rgba(var(--glow), 0.18), transparent 60%); animation: breathe 4s ease-in-out infinite; }
+    @keyframes breathe { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .blob, .pulse { animation: none; } }
+    .done .bg, .done .pulse { opacity: 0.25; }
+    main { position: relative; z-index: 1; min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .card { width: min(560px, 100%); background: rgba(20, 18, 18, 0.72); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); color: #f0f0ee; border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); border-radius: 20px; padding: 28px 32px 32px; text-align: center; }
     .device { margin: 0 auto 18px; }
     [hidden] { display: none !important; }
     h1 { font-size: 22px; margin: 0 0 6px; }
@@ -14,9 +32,12 @@
     .time { font-size: 44px; font-weight: 600; letter-spacing: -0.02em; margin: 4px 0 0; font-variant-numeric: tabular-nums; }
     .sub { margin: 4px 0 0; }
     .done .time { color: #30a46c; }
+    .muted { color: #a3a09e; }
   </style>
 </head>
 <body>
+  <div class="bg" id="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+  <div class="pulse"></div>
   <main>
     <div class="card" id="card">
       <div class="device idle" id="device" hidden>
