@@ -7,6 +7,10 @@ function stateURL(port) {
   return "http://127.0.0.1:" + (port || DEFAULT_PORT) + "/state";
 }
 
+function goURL(port) {
+  return "http://127.0.0.1:" + (port || DEFAULT_PORT) + "/go";
+}
+
 // Host equals a blocked entry (or is a subdomain of it); entries with a path
 // ("site.com/section") match as a prefix of host + path.
 function shouldBlock(url, state) {
@@ -34,17 +38,19 @@ function escapeRegex(text) {
 
 // Two declarativeNetRequest rules per entry: top-level navigations redirect to
 // the block page with the original URL in ?u=, embedded frames just vanish.
-// `relative` (Safari): redirect by extensionPath, which survives the new UUID
-// Safari assigns on every reinstall. The original URL can't ride along then;
-// the worker remembers it per tab instead (see originalURL in background.js).
-function rulesFor(domains, blockedPage, relative) {
+// `viaHelper` (Safari): Safari gives the extension a new UUID on every
+// reinstall while dynamic rules persist, so a rule must not contain the
+// extension URL. Redirect to the helper's /go?u=<site> instead (plain http,
+// stable); the content script on that page hops to blocked.html?u=… using the
+// current extension URL.
+function rulesFor(domains, blockedPage, viaHelper) {
   const rules = [];
   domains.forEach((domain, index) => {
     const slash = domain.indexOf("/");
     const host = slash === -1 ? domain : domain.slice(0, slash);
     const path = slash === -1 ? "" : domain.slice(slash);
     const tail = path ? escapeRegex(path) + ".*" : "([/?#].*)?";
-    const redirect = relative ? { extensionPath: "/blocked.html" } : { regexSubstitution: blockedPage + "?u=\\0" };
+    const redirect = { regexSubstitution: (viaHelper || blockedPage) + "?u=\\0" };
     rules.push({
       id: index * 2 + 1,
       priority: 1,
@@ -74,5 +80,5 @@ function formatRemaining(endsAtMs, nowMs) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { DEFAULT_PORT, stateURL, shouldBlock, rulesFor, offlineState, formatRemaining, escapeRegex };
+  module.exports = { DEFAULT_PORT, stateURL, goURL, shouldBlock, rulesFor, offlineState, formatRemaining, escapeRegex };
 }

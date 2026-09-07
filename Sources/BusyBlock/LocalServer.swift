@@ -166,6 +166,21 @@ final class LocalServer {
             return
         }
 
+        if method == "GET" && path == "/go" {
+            // Safari's redirect lands here; the extension's content script hops on
+            // to blocked.html. Shown only if the extension is missing.
+            let html = """
+            <!doctype html><meta charset="utf-8"><title>BusyBlock</title>
+            <body style="margin:0;background:#0e0c0c;color:#9a9a96;font:15px -apple-system,sans-serif;display:grid;place-items:center;height:100vh">
+            <p>Blocked while the BUSY Bar is busy. If this page stays, the BusyBlock extension is not enabled in this browser.</p>
+            """
+            let body = Data(html.utf8)
+            var head = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\n"
+            head += "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+            conn.send(content: Data(head.utf8) + body, completion: .contentProcessed { _ in conn.cancel() })
+            return
+        }
+
         if method == "GET" && path == "/events" {
             let ua = Self.header(requestHead, "user-agent") ?? "?"
             let n = sseClients.count + 1

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { shouldBlock, rulesFor, formatRemaining, stateURL } = require("../../extension/shared.js");
+const { shouldBlock, rulesFor, formatRemaining, stateURL, goURL } = require("../../extension/shared.js");
 
 const on = { isBlocking: true, domains: ["youtube.com", "reddit.com/r"] };
 
@@ -37,9 +37,9 @@ test("rulesFor makes redirect + block per entry with unique ids", () => {
   assert.equal(rules[3].condition.urlFilter, "||reddit.com^");
 });
 
-test("rulesFor relative mode uses extensionPath (Safari, UUID-proof)", () => {
-  const rules = rulesFor(["youtube.com"], "safari-web-extension://X/blocked.html", true);
-  assert.deepEqual(rules[0].action.redirect, { extensionPath: "/blocked.html" });
+test("rulesFor via helper (Safari) never embeds the extension URL", () => {
+  const rules = rulesFor(["youtube.com"], "safari-web-extension://X/blocked.html", goURL(48321));
+  assert.equal(rules[0].action.redirect.regexSubstitution, "http://127.0.0.1:48321/go?u=\\0");
   assert.ok(!JSON.stringify(rules).includes("safari-web-extension://X"));
 });
 

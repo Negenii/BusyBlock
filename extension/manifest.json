@@ -56,8 +56,7 @@
     "declarativeNetRequestWithHostAccess",
     "alarms",
     "tabs",
-    "storage",
-    "webNavigation"
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>",
