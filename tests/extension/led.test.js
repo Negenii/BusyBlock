@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 global.DEFAULT_PORT = 48321;
-const { decodeFrame, dominantColor } = require("../led.js");
+const { decodeFrame, dominantColor } = require("../../extension/led.js");
 
 test("dominantColor prefers saturated pixels over white", () => {
   const rgb = new Uint8Array([255, 255, 255, 220, 40, 40, 0, 0, 0]);

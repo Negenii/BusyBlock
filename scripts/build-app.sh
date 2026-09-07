@@ -9,6 +9,6 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/BusyBlock "$APP/Contents/MacOS/BusyBlock"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp -R extension "$APP/Contents/Resources/extension"
-rm -rf "$APP/Contents/Resources/extension/test" "$APP/Contents/Resources/extension/node_modules"
+rm -rf "$APP/Contents/Resources/extension/node_modules"
 codesign --force --sign - "$APP" >/dev/null
 echo "built $APP"

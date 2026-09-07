@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { shouldBlock, rulesFor, formatRemaining, stateURL } = require("../shared.js");
+const { shouldBlock, rulesFor, formatRemaining, stateURL } = require("../../extension/shared.js");
 
 const on = { isBlocking: true, domains: ["youtube.com", "reddit.com/r"] };
 

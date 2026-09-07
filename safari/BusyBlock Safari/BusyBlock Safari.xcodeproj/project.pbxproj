@@ -1,0 +1,621 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		55207CCD304F67DD006D586A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55207CCC304F67DD006D586A /* AppDelegate.swift */; };
+		55207CD1304F67DD006D586A /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = 55207CCF304F67DD006D586A /* Main.html */; };
+		55207CD3304F67DD006D586A /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 55207CD2304F67DD006D586A /* Icon.png */; };
+		55207CD5304F67DD006D586A /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = 55207CD4304F67DD006D586A /* Style.css */; };
+		55207CD7304F67DD006D586A /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207CD6304F67DD006D586A /* Script.js */; };
+		55207CD9304F67DD006D586A /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55207CD8304F67DD006D586A /* ViewController.swift */; };
+		55207CDC304F67DD006D586A /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 55207CDA304F67DD006D586A /* Main.storyboard */; };
+		55207CDE304F67DE006D586A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 55207CDD304F67DE006D586A /* Assets.xcassets */; };
+		55207CE5304F67DE006D586A /* BusyBlock Safari Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 55207CE4304F67DE006D586A /* BusyBlock Safari Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		55207CEA304F67DE006D586A /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55207CE9304F67DE006D586A /* SafariWebExtensionHandler.swift */; };
+		55207D02304F67DE006D586A /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207CF6304F67DE006D586A /* popup.js */; };
+		55207D03304F67DE006D586A /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207CF7304F67DE006D586A /* background.js */; };
+		55207D04304F67DE006D586A /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 55207CF8304F67DE006D586A /* popup.html */; };
+		55207D05304F67DE006D586A /* shared.css in Resources */ = {isa = PBXBuildFile; fileRef = 55207CF9304F67DE006D586A /* shared.css */; };
+		55207D06304F67DE006D586A /* led.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207CFA304F67DE006D586A /* led.js */; };
+		55207D07304F67DE006D586A /* brand in Resources */ = {isa = PBXBuildFile; fileRef = 55207CFB304F67DE006D586A /* brand */; };
+		55207D08304F67DE006D586A /* blocked.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207CFC304F67DE006D586A /* blocked.js */; };
+		55207D09304F67DE006D586A /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 55207CFD304F67DE006D586A /* icons */; };
+		55207D0A304F67DE006D586A /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 55207CFE304F67DE006D586A /* manifest.json */; };
+		55207D0B304F67DE006D586A /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207CFF304F67DE006D586A /* content.js */; };
+		55207D0C304F67DE006D586A /* shared.js in Resources */ = {isa = PBXBuildFile; fileRef = 55207D00304F67DE006D586A /* shared.js */; };
+		55207D0D304F67DE006D586A /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 55207D01304F67DE006D586A /* blocked.html */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		55207CE6304F67DE006D586A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 55207CC1304F67DD006D586A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 55207CE3304F67DE006D586A;
+			remoteInfo = "BusyBlock Safari Extension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		55207CF1304F67DE006D586A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				55207CE5304F67DE006D586A /* BusyBlock Safari Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		55207CC9304F67DD006D586A /* BusyBlock Safari.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BusyBlock Safari.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		55207CCC304F67DD006D586A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		55207CD0304F67DD006D586A /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		55207CD2304F67DD006D586A /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		55207CD4304F67DD006D586A /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		55207CD6304F67DD006D586A /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		55207CD8304F67DD006D586A /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		55207CDB304F67DD006D586A /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		55207CDD304F67DE006D586A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		55207CDF304F67DE006D586A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		55207CE4304F67DE006D586A /* BusyBlock Safari Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "BusyBlock Safari Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		55207CE9304F67DE006D586A /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		55207CEB304F67DE006D586A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		55207CF6304F67DE006D586A /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = popup.js; path = ../../../extension/popup.js; sourceTree = "<group>"; };
+		55207CF7304F67DE006D586A /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = background.js; path = ../../../extension/background.js; sourceTree = "<group>"; };
+		55207CF8304F67DE006D586A /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = popup.html; path = ../../../extension/popup.html; sourceTree = "<group>"; };
+		55207CF9304F67DE006D586A /* shared.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; name = shared.css; path = ../../../extension/shared.css; sourceTree = "<group>"; };
+		55207CFA304F67DE006D586A /* led.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = led.js; path = ../../../extension/led.js; sourceTree = "<group>"; };
+		55207CFB304F67DE006D586A /* brand */ = {isa = PBXFileReference; lastKnownFileType = folder; name = brand; path = ../../../extension/brand; sourceTree = "<group>"; };
+		55207CFC304F67DE006D586A /* blocked.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = blocked.js; path = ../../../extension/blocked.js; sourceTree = "<group>"; };
+		55207CFD304F67DE006D586A /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = ../../../extension/icons; sourceTree = "<group>"; };
+		55207CFE304F67DE006D586A /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = ../../../extension/manifest.json; sourceTree = "<group>"; };
+		55207CFF304F67DE006D586A /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = content.js; path = ../../../extension/content.js; sourceTree = "<group>"; };
+		55207D00304F67DE006D586A /* shared.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = shared.js; path = ../../../extension/shared.js; sourceTree = "<group>"; };
+		55207D01304F67DE006D586A /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = blocked.html; path = ../../../extension/blocked.html; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		55207CC6304F67DD006D586A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		55207CE1304F67DE006D586A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		55207CC0304F67DD006D586A = {
+			isa = PBXGroup;
+			children = (
+				55207CCB304F67DD006D586A /* BusyBlock Safari */,
+				55207CE8304F67DE006D586A /* BusyBlock Safari Extension */,
+				55207CCA304F67DD006D586A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		55207CCA304F67DD006D586A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				55207CC9304F67DD006D586A /* BusyBlock Safari.app */,
+				55207CE4304F67DE006D586A /* BusyBlock Safari Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		55207CCB304F67DD006D586A /* BusyBlock Safari */ = {
+			isa = PBXGroup;
+			children = (
+				55207CCC304F67DD006D586A /* AppDelegate.swift */,
+				55207CD8304F67DD006D586A /* ViewController.swift */,
+				55207CDA304F67DD006D586A /* Main.storyboard */,
+				55207CDD304F67DE006D586A /* Assets.xcassets */,
+				55207CDF304F67DE006D586A /* Info.plist */,
+				55207CCE304F67DD006D586A /* Resources */,
+			);
+			path = "BusyBlock Safari";
+			sourceTree = "<group>";
+		};
+		55207CCE304F67DD006D586A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				55207CCF304F67DD006D586A /* Main.html */,
+				55207CD2304F67DD006D586A /* Icon.png */,
+				55207CD4304F67DD006D586A /* Style.css */,
+				55207CD6304F67DD006D586A /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		55207CE8304F67DE006D586A /* BusyBlock Safari Extension */ = {
+			isa = PBXGroup;
+			children = (
+				55207CF5304F67DE006D586A /* Resources */,
+				55207CE9304F67DE006D586A /* SafariWebExtensionHandler.swift */,
+				55207CEB304F67DE006D586A /* Info.plist */,
+			);
+			path = "BusyBlock Safari Extension";
+			sourceTree = "<group>";
+		};
+		55207CF5304F67DE006D586A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				55207CF6304F67DE006D586A /* popup.js */,
+				55207CF7304F67DE006D586A /* background.js */,
+				55207CF8304F67DE006D586A /* popup.html */,
+				55207CF9304F67DE006D586A /* shared.css */,
+				55207CFA304F67DE006D586A /* led.js */,
+				55207CFB304F67DE006D586A /* brand */,
+				55207CFC304F67DE006D586A /* blocked.js */,
+				55207CFD304F67DE006D586A /* icons */,
+				55207CFE304F67DE006D586A /* manifest.json */,
+				55207CFF304F67DE006D586A /* content.js */,
+				55207D00304F67DE006D586A /* shared.js */,
+				55207D01304F67DE006D586A /* blocked.html */,
+			);
+			name = Resources;
+			path = "BusyBlock Safari Extension";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		55207CC8304F67DD006D586A /* BusyBlock Safari */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55207CF2304F67DE006D586A /* Build configuration list for PBXNativeTarget "BusyBlock Safari" */;
+			buildPhases = (
+				55207CC5304F67DD006D586A /* Sources */,
+				55207CC6304F67DD006D586A /* Frameworks */,
+				55207CC7304F67DD006D586A /* Resources */,
+				55207CF1304F67DE006D586A /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				55207CE7304F67DE006D586A /* PBXTargetDependency */,
+			);
+			name = "BusyBlock Safari";
+			productName = "BusyBlock Safari";
+			productReference = 55207CC9304F67DD006D586A /* BusyBlock Safari.app */;
+			productType = "com.apple.product-type.application";
+		};
+		55207CE3304F67DE006D586A /* BusyBlock Safari Extension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 55207CEE304F67DE006D586A /* Build configuration list for PBXNativeTarget "BusyBlock Safari Extension" */;
+			buildPhases = (
+				55207CE0304F67DE006D586A /* Sources */,
+				55207CE1304F67DE006D586A /* Frameworks */,
+				55207CE2304F67DE006D586A /* Resources */,
+			);
+			buildRules = (
+			);
+			name = "BusyBlock Safari Extension";
+			productName = "BusyBlock Safari Extension";
+			productReference = 55207CE4304F67DE006D586A /* BusyBlock Safari Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		55207CC1304F67DD006D586A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					55207CC8304F67DD006D586A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					55207CE3304F67DE006D586A = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 55207CC4304F67DD006D586A /* Build configuration list for PBXProject "BusyBlock Safari" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 55207CC0304F67DD006D586A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 55207CCA304F67DD006D586A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				55207CC8304F67DD006D586A /* BusyBlock Safari */,
+				55207CE3304F67DE006D586A /* BusyBlock Safari Extension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		55207CC7304F67DD006D586A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				55207CD3304F67DD006D586A /* Icon.png in Resources */,
+				55207CDC304F67DD006D586A /* Main.storyboard in Resources */,
+				55207CD7304F67DD006D586A /* Script.js in Resources */,
+				55207CD1304F67DD006D586A /* Main.html in Resources */,
+				55207CDE304F67DE006D586A /* Assets.xcassets in Resources */,
+				55207CD5304F67DD006D586A /* Style.css in Resources */,
+			);
+		};
+		55207CE2304F67DE006D586A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				55207D07304F67DE006D586A /* brand in Resources */,
+				55207D0C304F67DE006D586A /* shared.js in Resources */,
+				55207D09304F67DE006D586A /* icons in Resources */,
+				55207D08304F67DE006D586A /* blocked.js in Resources */,
+				55207D06304F67DE006D586A /* led.js in Resources */,
+				55207D0B304F67DE006D586A /* content.js in Resources */,
+				55207D0A304F67DE006D586A /* manifest.json in Resources */,
+				55207D0D304F67DE006D586A /* blocked.html in Resources */,
+				55207D05304F67DE006D586A /* shared.css in Resources */,
+				55207D03304F67DE006D586A /* background.js in Resources */,
+				55207D04304F67DE006D586A /* popup.html in Resources */,
+				55207D02304F67DE006D586A /* popup.js in Resources */,
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		55207CC5304F67DD006D586A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				55207CD9304F67DD006D586A /* ViewController.swift in Sources */,
+				55207CCD304F67DD006D586A /* AppDelegate.swift in Sources */,
+			);
+		};
+		55207CE0304F67DE006D586A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				55207CEA304F67DE006D586A /* SafariWebExtensionHandler.swift in Sources */,
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		55207CE7304F67DE006D586A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 55207CE3304F67DE006D586A /* BusyBlock Safari Extension */;
+			targetProxy = 55207CE6304F67DE006D586A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		55207CCF304F67DD006D586A /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				55207CD0304F67DD006D586A /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		55207CDA304F67DD006D586A /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				55207CDB304F67DD006D586A /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		55207CEC304F67DE006D586A /* Debug configuration for PBXProject "BusyBlock Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		55207CED304F67DE006D586A /* Release configuration for PBXProject "BusyBlock Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		55207CEF304F67DE006D586A /* Debug configuration for PBXNativeTarget "BusyBlock Safari Extension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "BusyBlock Safari Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "BusyBlock Safari Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.negenii.BusyBlock.Safari.Extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		55207CF0304F67DE006D586A /* Release configuration for PBXNativeTarget "BusyBlock Safari Extension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "BusyBlock Safari Extension/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "BusyBlock Safari Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.negenii.BusyBlock.Safari.Extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		55207CF3304F67DE006D586A /* Debug configuration for PBXNativeTarget "BusyBlock Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "BusyBlock Safari/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "BusyBlock Safari";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSViewGestureRecognizerIsExclusive = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "me.negenii.BusyBlock.BusyBlock-Safari";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		55207CF4304F67DE006D586A /* Release configuration for PBXNativeTarget "BusyBlock Safari" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "BusyBlock Safari/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "BusyBlock Safari";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSViewGestureRecognizerIsExclusive = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "me.negenii.BusyBlock.BusyBlock-Safari";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		55207CC4304F67DD006D586A /* Build configuration list for PBXProject "BusyBlock Safari" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55207CEC304F67DE006D586A /* Debug configuration for PBXProject "BusyBlock Safari" */,
+				55207CED304F67DE006D586A /* Release configuration for PBXProject "BusyBlock Safari" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		55207CEE304F67DE006D586A /* Build configuration list for PBXNativeTarget "BusyBlock Safari Extension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55207CEF304F67DE006D586A /* Debug configuration for PBXNativeTarget "BusyBlock Safari Extension" */,
+				55207CF0304F67DE006D586A /* Release configuration for PBXNativeTarget "BusyBlock Safari Extension" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		55207CF2304F67DE006D586A /* Build configuration list for PBXNativeTarget "BusyBlock Safari" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				55207CF3304F67DE006D586A /* Debug configuration for PBXNativeTarget "BusyBlock Safari" */,
+				55207CF4304F67DE006D586A /* Release configuration for PBXNativeTarget "BusyBlock Safari" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 55207CC1304F67DD006D586A /* Project object */;
+	validationLevel = 1;
+}
