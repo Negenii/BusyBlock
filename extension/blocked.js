@@ -11,6 +11,16 @@
     document.getElementById("site").title = host;
   }
   setOriginal(original);
+
+  // The site's icon stands in for its name. The helper serves it (own cache,
+  // site first, then the optional DuckDuckGo fallback); name if it has none.
+  function loadFavicon(port) {
+    if (!host) return;
+    favEl.onload = () => { favEl.hidden = false; hostEl.hidden = true; };
+    favEl.onerror = () => { favEl.hidden = true; hostEl.hidden = false; };
+    favEl.src = "http://127.0.0.1:" + (port || DEFAULT_PORT) + "/favicon?host=" + encodeURIComponent(host);
+  }
+
   let state = null;
   let leaving = false;
   const timeEl = document.getElementById("time");
