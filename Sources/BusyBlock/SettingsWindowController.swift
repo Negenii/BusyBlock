@@ -28,7 +28,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private var advancedManual: Bool?   // nil = follow the connection state
     private let hostField = NSTextField()
     private let tokenField = NSTextField()
-    private let discoverCheck = NSButton(checkboxWithTitle: "Find the bar automatically when this host is silent", target: nil, action: nil)
+    private let discoverCheck = NSButton(checkboxWithTitle: "Find the BUSY Bar automatically (USB, busybar.local, Bonjour)", target: nil, action: nil)
     private let restCheck = NSButton(checkboxWithTitle: "Keep blocking during rest phases", target: nil, action: nil)
     private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser", target: nil, action: nil)
     private let timerCheck = NSButton(checkboxWithTitle: "Show the countdown in the menu bar (the BUSY app shows it too)", target: nil, action: nil)
@@ -96,7 +96,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
 
         // Status card and the bar preview side by side, as two separate things.
-        let topRow = NSStackView(views: [statusCard(), devicePanel])
+        let topRow = NSStackView(views: [devicePanel, statusCard()])
         topRow.orientation = .horizontal
         topRow.alignment = .centerY
         topRow.spacing = 14
@@ -106,11 +106,11 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         for check in [discoverCheck, restCheck, screenCheck, timerCheck] {
             check.target = self
             check.action = #selector(toggled)
-            root.addArrangedSubview(indent(check))
+            root.addArrangedSubview(check)
         }
         loginCheck.target = self
         loginCheck.action = #selector(toggleLogin)
-        root.addArrangedSubview(indent(loginCheck))
+        root.addArrangedSubview(loginCheck)
         // Host and token only matter when discovery failed or the bar wants a
         // token; they unfold on their own in those cases.
         advancedToggle.bezelStyle = .inline
@@ -119,7 +119,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         advancedToggle.action = #selector(toggleAdvanced)
         advancedToggle.font = .systemFont(ofSize: 12)
         advancedToggle.contentTintColor = .secondaryLabelColor
-        root.addArrangedSubview(indent(advancedToggle))
+        root.addArrangedSubview(advancedToggle)
         advancedBox.orientation = .vertical
         advancedBox.alignment = .leading
         advancedBox.spacing = 8
