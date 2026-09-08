@@ -10,7 +10,15 @@ final class OnboardingWindowController: NSWindowController {
     private let store: ConfigStore
     private let controller: BlockController
     private let onFinish: () -> Void
+    private let startNetworking: () -> Void
     private var cancellables = Set<AnyCancellable>()
+
+    // Page 0 widgets
+    private let netButton = NSButton(title: "Allow local network access", target: nil, action: nil)
+    private let netSpinner = NSProgressIndicator()
+    private let netStatus = NSTextField(wrappingLabelWithString: "")
+    private let netDeniedBox = NSStackView()
+    private var netResult: LocalNetworkAccess.Result?
 
     private var pages: [NSView] = []
     private var index = 0
@@ -35,9 +43,10 @@ final class OnboardingWindowController: NSWindowController {
     private let dockCheck = NSButton(checkboxWithTitle: "Icon in the Dock", target: nil, action: nil)
     private let iconsNote = NSTextField(wrappingLabelWithString: "")
 
-    init(store: ConfigStore, controller: BlockController, onFinish: @escaping () -> Void) {
+    init(store: ConfigStore, controller: BlockController, startNetworking: @escaping () -> Void, onFinish: @escaping () -> Void) {
         self.store = store
         self.controller = controller
+        self.startNetworking = startNetworking
         self.onFinish = onFinish
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -47,7 +56,16 @@ final class OnboardingWindowController: NSWindowController {
         super.init(window: w)
         w.contentView = build()
         w.center()
-        controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
+        controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            self?.refreshFind()
+            if let self, self.controller.state.barConnected, self.netResult != .granted {
+                self.netResult = .granted
+                self.netSpinner.stopAnimation(nil)
+                self.netStatus.stringValue = "✓ Local network access is on (the bar answered)."
+                self.netButton.title = "Access granted"; self.netButton.isEnabled = false
+                self.netDeniedBox.isHidden = true
+            }
+        }.store(in: &cancellables)
         controller.$discovering.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
         controller.$searchFailed.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
         controller.$needsToken.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
@@ -91,7 +109,7 @@ final class OnboardingWindowController: NSWindowController {
         bar.widthAnchor.constraint(equalToConstant: 536).isActive = true
         root.addArrangedSubview(bar)
 
-        pages = [pageFind(), pageExtension(), pageHiding(), pageStartup(), pageDone()]
+        pages = [pageNetwork(), pageFind(), pageExtension(), pageHiding(), pageStartup(), pageDone()]
         for _ in pages {
             let d = DotView()
             d.translatesAutoresizingMaskIntoConstraints = false
@@ -125,6 +143,69 @@ final class OnboardingWindowController: NSWindowController {
         if muted { l.textColor = .secondaryLabelColor }
         l.preferredMaxLayoutWidth = 536
         return l
+    }
+
+    // MARK: Page 0 — local network permission
+
+    private func pageNetwork() -> NSView {
+        netButton.target = self; netButton.action = #selector(askNetwork)
+        netButton.bezelStyle = .rounded
+        netButton.controlSize = .large
+        netSpinner.style = .spinning
+        netSpinner.controlSize = .small
+        netSpinner.isDisplayedWhenStopped = false
+        netStatus.font = .systemFont(ofSize: 13)
+        netStatus.preferredMaxLayoutWidth = 536
+        let row = NSStackView(views: [netButton, netSpinner])
+        row.orientation = .horizontal
+        row.spacing = 10
+        netDeniedBox.orientation = .vertical
+        netDeniedBox.alignment = .leading
+        netDeniedBox.spacing = 8
+        netDeniedBox.addArrangedSubview(label("Without it BusyBlock can't reach the bar. Turn it on in System Settings → Privacy & Security → Local Network, then check again.", muted: true))
+        let openSettings = NSButton(title: "Open System Settings", target: self, action: #selector(openPrivacySettings))
+        let recheck = NSButton(title: "Check again", target: self, action: #selector(askNetwork))
+        let btns = NSStackView(views: [openSettings, recheck])
+        btns.orientation = .horizontal
+        netDeniedBox.addArrangedSubview(btns)
+        netDeniedBox.isHidden = true
+        return page("One permission first",
+                    "To find your BUSY Bar, BusyBlock talks to devices on your local network: over the USB link and over Wi-Fi. macOS asks you once whether that's okay.",
+                    [row, netStatus, netDeniedBox])
+    }
+
+    @objc private func askNetwork() {
+        netButton.isEnabled = false
+        netSpinner.startAnimation(nil)
+        netStatus.stringValue = "Waiting for your answer…"
+        netDeniedBox.isHidden = true
+        startNetworking()   // the first LAN contact is what makes macOS show the prompt
+        LocalNetworkAccess.probe { [weak self] result in
+            guard let self else { return }
+            // The bar answering settles it regardless of what the probe saw.
+            let r: LocalNetworkAccess.Result = controller.state.barConnected ? .granted : result
+            netResult = r
+            netSpinner.stopAnimation(nil)
+            switch r {
+            case .granted:
+                netStatus.stringValue = "✓ Local network access is on."
+                netButton.title = "Access granted"
+            case .denied:
+                netStatus.stringValue = "Access was declined."
+                netDeniedBox.isHidden = false
+                netButton.isEnabled = true
+            case .undetermined:
+                netStatus.stringValue = "No answer yet. If macOS asked, choose Allow; otherwise access is probably already on."
+                netButton.isEnabled = true
+                netButton.title = "Check again"
+            }
+        }
+    }
+
+    @objc private func openPrivacySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     // MARK: Page 1 — find the bar
@@ -320,8 +401,8 @@ final class OnboardingWindowController: NSWindowController {
         backButton.isHidden = index == 0
         nextButton.title = index == pages.count - 1 ? "Open Settings" : "Continue"
         skipButton.isHidden = index == pages.count - 1
-        if index == 0 { refreshFind() }
-        if index == 3 {
+        if index == 1 { refreshFind() }
+        if index == 4 {
             if #available(macOS 13, *) { loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off }
         }
     }

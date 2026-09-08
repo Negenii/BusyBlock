@@ -112,8 +112,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         do { try server.start() } catch { log("local server start failed: \(error)") }
 
-        controller.start()
-        stream.start()
+        // First run: the onboarding asks for local-network access before we
+        // touch the LAN, so the system prompt appears at the right moment.
+        if store.config.onboardingDone || CommandLine.arguments.contains("--settings") { startNetworking() }
         // Interfaces coming and going (USB cable, Wi-Fi) are the usual reason
         // the bar moves; re-check right away instead of waiting for timeouts.
         pathMonitor.pathUpdateHandler = { [weak self] _ in
@@ -138,6 +139,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if CommandLine.arguments.contains("--settings") || openRequestedBeforeLaunch || !Self.launchedAsLoginItem() {
             showSettings()
         }
+    }
+
+    private var networkingStarted = false
+    func startNetworking() {
+        guard !networkingStarted else { return }
+        networkingStarted = true
+        controller.start()
+        stream.start()
+        log("networking started")
     }
 
     /// True when launchd started us as a login item (no one clicked anything).
@@ -180,8 +190,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showOnboarding() {
         if onboarding == nil {
-            onboarding = OnboardingWindowController(store: store, controller: controller) { [weak self] in
+            onboarding = OnboardingWindowController(store: store, controller: controller, startNetworking: { [weak self] in self?.startNetworking() }) { [weak self] in
                 self?.onboarding = nil
+                self?.startNetworking()
                 self?.showSettings(highlightSetup: true)
             }
         }
