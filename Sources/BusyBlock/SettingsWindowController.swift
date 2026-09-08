@@ -25,6 +25,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let devicePanel = DevicePanelView()
     private let advancedToggle = NSButton()
     private let advancedBox = NSStackView()
+    private let connIcon = NSImageView()
+    private let connLabel = NSTextField(labelWithString: "")
     private var advancedManual: Bool?   // nil = follow the connection state
     private let hostField = NSTextField()
     private let tokenField = NSTextField()
@@ -391,11 +393,21 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             statusDot.color = .systemRed
             let left = s.endsAt.map { Self.remaining($0) } ?? ""
             statusTitle.stringValue = "Blocking · " + (left.isEmpty ? "no time limit" : "\(left) left")
-            statusDetail.stringValue = "\(apps.count) apps, \(domains.count) websites · bar at \(host)\(via)"
+            statusDetail.stringValue = "\(apps.count) apps, \(domains.count) websites"
         } else {
             statusDot.color = .systemGreen
             statusTitle.stringValue = s.paused ? "Paused" : s.phase == "rest" ? "Rest phase" : "Idle · start the bar to block"
-            statusDetail.stringValue = "Bar at \(host)\(via)"
+            statusDetail.stringValue = "\(apps.count) apps, \(domains.count) websites ready"
+        }
+        // Connection row: USB is the bar's fixed USB address, anything else is Wi-Fi.
+        if s.barConnected {
+            let usb = host == BarLocator.usbHost
+            connIcon.image = NSImage(systemSymbolName: usb ? "cable.connector" : "wifi", accessibilityDescription: usb ? "USB" : "Wi-Fi")
+            connIcon.isHidden = false
+            connLabel.stringValue = (usb ? "USB" : "Wi-Fi · \(host)") + (controller.foundVia == .configured ? "" : " · found automatically")
+        } else {
+            connIcon.isHidden = true
+            connLabel.stringValue = searching ? "searching…" : "not connected"
         }
     }
 
