@@ -39,6 +39,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     // Apps
     private let appChips = FlowView()
     private let dropZone = DropZoneView()
+    private var dropZoneWidth: NSLayoutConstraint!
+    private var appChipsWidth: NSLayoutConstraint!
     private let appPills = FlowView()
     private var apps: [String] = []
 
@@ -151,10 +153,12 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         appChips.spacing = 8
         dropZone.onClick = { [weak self] in self?.pickApp() }
         dropZone.translatesAutoresizingMaskIntoConstraints = false
-        dropZone.widthAnchor.constraint(equalToConstant: 100).isActive = true
+        dropZoneWidth = dropZone.widthAnchor.constraint(equalToConstant: 100)
+        dropZoneWidth.isActive = true
         dropZone.heightAnchor.constraint(equalToConstant: 100).isActive = true
         appChips.translatesAutoresizingMaskIntoConstraints = false
-        appChips.widthAnchor.constraint(equalToConstant: 592 - 100 - 12).isActive = true
+        appChipsWidth = appChips.widthAnchor.constraint(equalToConstant: 592 - 100 - 12)
+        appChipsWidth.isActive = true
         let appsRow = NSStackView(views: [appChips, dropZone])
         appsRow.orientation = .horizontal
         appsRow.alignment = .top
@@ -478,6 +482,12 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             }
             appChips.addSubview(chip)
         }
+        // No apps yet: the drop zone takes the whole row.
+        let empty = apps.isEmpty
+        appChips.isHidden = empty
+        appChipsWidth.constant = empty ? 0 : 592 - 100 - 12
+        dropZoneWidth.constant = empty ? 592 : 100
+        dropZone.wide = empty
         appChips.needsLayout = true
         DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
@@ -565,7 +575,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 final class DropZoneView: NSView {
     var onClick: (() -> Void)?
     var active = false { didSet { needsDisplay = true } }
+    var wide = false { didSet { label.stringValue = wide ? "Drop apps here from Finder, or click to choose" : "Drop apps\nor click"; stack.orientation = wide ? .horizontal : .vertical } }
     private let label = NSTextField(wrappingLabelWithString: "Drop apps\nor click")
+    private let stack = NSStackView()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -575,10 +587,12 @@ final class DropZoneView: NSView {
         label.textColor = .secondaryLabelColor
         label.font = .systemFont(ofSize: 11)
         label.alignment = .center
-        let s = NSStackView(views: [icon, label])
+        let s = stack
+        s.addArrangedSubview(icon)
+        s.addArrangedSubview(label)
         s.orientation = .vertical
         s.alignment = .centerX
-        s.spacing = 6
+        s.spacing = 8
         s.translatesAutoresizingMaskIntoConstraints = false
         addSubview(s)
         NSLayoutConstraint.activate([s.centerXAnchor.constraint(equalTo: centerXAnchor), s.centerYAnchor.constraint(equalTo: centerYAnchor),
