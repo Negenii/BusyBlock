@@ -373,12 +373,7 @@ final class OnboardingWindowController: NSWindowController {
             iv.alphaValue = 0.3
             iv.translatesAutoresizingMaskIntoConstraints = false
             cell.addSubview(iv)
-            let badge = NSImageView(image: NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: "hidden")!)
-            badge.symbolConfiguration = .init(pointSize: 13, weight: .semibold)
-            badge.contentTintColor = .white
-            badge.wantsLayer = true
-            badge.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
-            badge.layer?.cornerRadius = 11
+            let badge = HiddenBadgeView()
             badge.translatesAutoresizingMaskIntoConstraints = false
             cell.addSubview(badge)
             NSLayoutConstraint.activate([
@@ -389,24 +384,7 @@ final class OnboardingWindowController: NSWindowController {
             ])
             row.addArrangedSubview(cell)
         }
-        let arrow = NSImageView(image: NSImage(systemSymbolName: "arrow.left", accessibilityDescription: nil)!)
-        arrow.symbolConfiguration = .init(pointSize: 18, weight: .medium)
-        arrow.contentTintColor = .tertiaryLabelColor
-        let busy = NSTextField(labelWithString: "BUSY")
-        busy.font = .systemFont(ofSize: 15, weight: .heavy)
-        busy.textColor = .white
-        busy.wantsLayer = true
-        busy.layer?.backgroundColor = NSColor(calibratedRed: 0.9, green: 0.28, blue: 0.3, alpha: 1).cgColor
-        busy.layer?.cornerRadius = 6
-        busy.alignment = .center
-        busy.translatesAutoresizingMaskIntoConstraints = false
-        busy.widthAnchor.constraint(equalToConstant: 72).isActive = true
-        busy.heightAnchor.constraint(equalToConstant: 30).isActive = true
-        let scene = NSStackView(views: [row, arrow, busy])
-        scene.orientation = .horizontal
-        scene.alignment = .centerY
-        scene.spacing = 18
-        let sceneBox = NSStackView(views: [scene])
+        let sceneBox = NSStackView(views: [row])
         sceneBox.alignment = .centerX
         sceneBox.translatesAutoresizingMaskIntoConstraints = false
         sceneBox.widthAnchor.constraint(equalToConstant: 536).isActive = true
@@ -515,6 +493,21 @@ final class OnboardingWindowController: NSWindowController {
         store.save(c)
         window?.close()
         onFinish()
+    }
+}
+
+/// Round accent badge with a crossed-out eye, for "this app gets hidden".
+final class HiddenBadgeView: NSView {
+    override var intrinsicContentSize: NSSize { NSSize(width: 22, height: 22) }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.controlAccentColor.setFill()
+        NSBezierPath(ovalIn: bounds).fill()
+        guard let sym = NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold)) else { return }
+        let tinted = sym.copy() as! NSImage
+        tinted.lockFocus(); NSColor.white.set(); NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop); tinted.unlockFocus()
+        let sz = tinted.size
+        tinted.draw(in: NSRect(x: bounds.midX - sz.width / 2, y: bounds.midY - sz.height / 2, width: sz.width, height: sz.height))
     }
 }
 
