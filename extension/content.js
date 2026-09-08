@@ -8,9 +8,17 @@
   const api = typeof browser !== "undefined" ? browser : chrome;
   // Safari path: the DNR rule sent us to the helper's /go?u=<site>; finish the
   // hop to the block page with the extension's current URL.
+  // Never navigate a page the person can't see: Safari preloads the address
+  // bar's top hit while they are still typing, and Chrome prerenders. Wait
+  // until the page is actually shown; a discarded preload never gets there.
+  const whenVisible = (fn) => {
+    if (document.visibilityState === "visible" && !document.prerendering) { fn(); return; }
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fn(); }, { once: true });
+    document.addEventListener("prerenderingchange", fn, { once: true });
+  };
   if (/^http:\/\/127\.0\.0\.1:\d+\/go(\?|$)/.test(url)) {
     const u = new URLSearchParams(location.search).get("u") || "";
-    location.replace(api.runtime.getURL("blocked.html") + "?u=" + encodeURIComponent(u));
+    whenVisible(() => location.replace(api.runtime.getURL("blocked.html") + "?u=" + encodeURIComponent(u)));
     return;
   }
   let reply;

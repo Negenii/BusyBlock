@@ -180,7 +180,16 @@ final class LocalServer {
             let kind = Self.browserKind(Self.header(requestHead, "user-agent") ?? "")
             let u = query["u"] ?? ""
             let target = blockedPageURL[kind].map { $0 + "?u=" + (u.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "") }
-            let hop = target.map { "<script>location.replace(\"\($0)\")</script>" } ?? ""
+            // Hop only once this page is actually on screen. Safari preloads the
+            // address bar's top hit in the background while the person is still
+            // typing; a redirect that fired then would drag them to the block page
+            // for a site they never chose. Hidden preloads just sit here.
+            let hop = target.map { t in
+                "<script>(function(){var go=function(){location.replace(\"\(t)\")};"
+                + "if(document.visibilityState==='visible'&&!document.prerendering){go();}"
+                + "else{document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')go();});"
+                + "document.addEventListener('prerenderingchange',go);}})()</script>"
+            } ?? ""
             let html = """
             <!doctype html><meta charset="utf-8"><title>BusyBlock</title>\(hop)
             <body style="margin:0;background:#0e0c0c;color:#9a9a96;font:15px -apple-system,sans-serif;display:grid;place-items:center;height:100vh">
