@@ -257,8 +257,22 @@ final class OnboardingWindowController: NSWindowController {
 
         manualBox.translatesAutoresizingMaskIntoConstraints = false
         manualBox.widthAnchor.constraint(equalToConstant: 536).isActive = true
-        return page("Let's find your BUSY Bar", "BusyBlock hides apps and blocks websites while the bar's timer is running, so first it needs to see the bar.",
-                    [centre, manualBox])
+
+        // The bar sits in the middle of whatever height is left under the title.
+        let holder = NSView()
+        holder.translatesAutoresizingMaskIntoConstraints = false
+        holder.addSubview(centre)
+        holder.setContentHuggingPriority(.init(1), for: .vertical)
+        holder.setContentCompressionResistancePriority(.init(1), for: .vertical)
+        NSLayoutConstraint.activate([
+            centre.centerXAnchor.constraint(equalTo: holder.centerXAnchor),
+            centre.centerYAnchor.constraint(equalTo: holder.centerYAnchor),
+            holder.widthAnchor.constraint(equalToConstant: 536),
+        ])
+        let v = page("Let's find your BUSY Bar", "BusyBlock hides apps and blocks websites while the bar's timer is running, so first it needs to see the bar.",
+                     [holder, manualBox])
+        v.heightAnchor.constraint(equalToConstant: 372).isActive = true
+        return v
     }
 
     private func refreshFind() {
@@ -409,8 +423,23 @@ final class OnboardingWindowController: NSWindowController {
         iconsNote.textColor = .secondaryLabelColor
         iconsNote.preferredMaxLayoutWidth = 536
         updateIconsNote()
+        func column(_ kind: IconPlacementView.Kind, _ check: NSButton) -> NSView {
+            let pic = IconPlacementView(kind: kind)
+            pic.translatesAutoresizingMaskIntoConstraints = false
+            pic.widthAnchor.constraint(equalToConstant: 260).isActive = true
+            pic.heightAnchor.constraint(equalToConstant: 104).isActive = true
+            let col = NSStackView(views: [pic, check])
+            col.orientation = .vertical
+            col.alignment = .centerX
+            col.spacing = 10
+            return col
+        }
+        let pictures = NSStackView(views: [column(.menuBar, menuCheck), column(.dock, dockCheck)])
+        pictures.orientation = .horizontal
+        pictures.alignment = .top
+        pictures.spacing = 16
         return page("Run it quietly", "BusyBlock has nothing to say most of the time, so it can stay out of sight.",
-                    [loginCheck, label("Where do you want its icon?", size: 13), menuCheck, dockCheck, iconsNote])
+                    [loginCheck, label("Where do you want its icon?", size: 13), pictures, iconsNote])
     }
 
     @objc private func toggleLogin() {
@@ -710,6 +739,88 @@ final class IllustrationView: NSView {
             NSBezierPath(roundedRect: field, xRadius: 4, yRadius: 4).fill()
             appIcon(at: NSPoint(x: bar.maxX - 34, y: bar.midY - 7), size: 14)
             icon("puzzlepiece.extension", at: NSPoint(x: bar.maxX - 16, y: bar.midY - 6), size: 11, tint: .tertiaryLabelColor)
+        }
+    }
+}
+
+/// A small picture of the menu bar or the Dock with BusyBlock's icon in place.
+final class IconPlacementView: NSView {
+    enum Kind { case menuBar, dock }
+    private let kind: Kind
+    init(kind: Kind) {
+        self.kind = kind
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.masksToBounds = true
+        layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.1).cgColor
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func symbol(_ name: String, at p: NSPoint, size: CGFloat, tint: NSColor) {
+        guard let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: size, weight: .regular)) else { return }
+        tinted(img, tint).draw(at: p, from: .zero, operation: .sourceOver, fraction: 1)
+    }
+    private func tinted(_ img: NSImage, _ tint: NSColor) -> NSImage {
+        let t = img.copy() as! NSImage
+        t.lockFocus(); tint.set(); NSRect(origin: .zero, size: t.size).fill(using: .sourceAtop); t.unlockFocus()
+        t.isTemplate = false
+        return t
+    }
+    private func highlight(_ r: NSRect) {
+        NSColor.controlAccentColor.withAlphaComponent(0.22).setFill()
+        NSBezierPath(roundedRect: r, xRadius: 5, yRadius: 5).fill()
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let b = bounds
+        let muted = NSColor.secondaryLabelColor
+        switch kind {
+        case .menuBar:
+            // Menu bar strip along the top edge, status items on the right.
+            let strip = NSRect(x: b.minX, y: b.maxY - 26, width: b.width, height: 26)
+            NSColor.windowBackgroundColor.withAlphaComponent(0.9).setFill()
+            strip.fill()
+            NSColor.separatorColor.setFill()
+            NSRect(x: strip.minX, y: strip.minY, width: strip.width, height: 1).fill()
+            let time = "9:41"
+            let ta: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.labelColor]
+            let ts = time.size(withAttributes: ta)
+            time.draw(at: NSPoint(x: strip.maxX - 12 - ts.width, y: strip.midY - ts.height / 2), withAttributes: ta)
+            symbol("battery.75percent", at: NSPoint(x: strip.maxX - 12 - ts.width - 30, y: strip.midY - 7), size: 13, tint: .labelColor)
+            symbol("wifi", at: NSPoint(x: strip.maxX - 12 - ts.width - 52, y: strip.midY - 7), size: 12, tint: .labelColor)
+            let slot = NSRect(x: strip.maxX - 12 - ts.width - 84, y: strip.minY + 2, width: 26, height: 22)
+            highlight(slot)
+            let icon = tinted(MenuBarController.statusIcon(filled: false), .labelColor)
+            icon.draw(in: NSRect(x: slot.midX - 8, y: slot.midY - 8, width: 16, height: 16), from: .zero, operation: .sourceOver, fraction: 1)
+            symbol("apple.logo", at: NSPoint(x: strip.minX + 12, y: strip.midY - 7), size: 13, tint: .labelColor)
+            "File   Edit   View".draw(at: NSPoint(x: strip.minX + 34, y: strip.midY - 7), withAttributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: muted])
+            // A window edge below, so it reads as a screen.
+            let win = NSRect(x: b.minX + 28, y: b.minY - 10, width: b.width - 56, height: strip.minY - 14)
+            NSColor.windowBackgroundColor.withAlphaComponent(0.6).setFill()
+            NSBezierPath(roundedRect: win, xRadius: 8, yRadius: 8).fill()
+        case .dock:
+            let tray = NSRect(x: b.midX - 104, y: b.minY + 10, width: 208, height: 46)
+            NSColor.windowBackgroundColor.withAlphaComponent(0.85).setFill()
+            NSBezierPath(roundedRect: tray, xRadius: 12, yRadius: 12).fill()
+            NSColor.separatorColor.setStroke()
+            NSBezierPath(roundedRect: tray, xRadius: 12, yRadius: 12).stroke()
+            let tints: [NSColor] = [.systemBlue, .systemGreen, .systemOrange, .systemPurple]
+            var x = tray.minX + 12
+            for t in tints {
+                t.withAlphaComponent(0.55).setFill()
+                NSBezierPath(roundedRect: NSRect(x: x, y: tray.midY - 15, width: 30, height: 30), xRadius: 7, yRadius: 7).fill()
+                x += 38
+            }
+            let slot = NSRect(x: x - 3, y: tray.minY + 3, width: 40, height: 40)
+            highlight(slot)
+            NSApp.applicationIconImage.draw(in: NSRect(x: x, y: tray.midY - 17, width: 34, height: 34), from: .zero, operation: .sourceOver, fraction: 1)
+            NSColor.labelColor.withAlphaComponent(0.6).setFill()
+            NSBezierPath(ovalIn: NSRect(x: slot.midX - 2, y: tray.minY - 6, width: 4, height: 4)).fill()
+            // Desktop hint above the tray.
+            let win = NSRect(x: b.minX + 28, y: tray.maxY + 10, width: b.width - 56, height: b.height)
+            NSColor.windowBackgroundColor.withAlphaComponent(0.6).setFill()
+            NSBezierPath(roundedRect: win, xRadius: 8, yRadius: 8).fill()
         }
     }
 }
