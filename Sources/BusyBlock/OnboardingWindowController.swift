@@ -348,14 +348,91 @@ final class OnboardingWindowController: NSWindowController {
     // MARK: Page 3 — hiding
 
     private func pageHiding() -> NSView {
-        let icon = NSImageView(image: NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)!)
-        icon.symbolConfiguration = .init(pointSize: 40, weight: .light)
-        icon.contentTintColor = .controlAccentColor
-        return page("Apps get hidden, not quit",
-                    "While the bar is busy, the apps you list are hidden the moment they come to the front. Nothing is closed and nothing is lost: when the timer ends, they're right where you left them.",
-                    [icon,
-                     label("Websites open a BusyBlock page with the bar's own screen on it, and go back to normal when the session ends."),
-                     label("If you quit BusyBlock mid-session, the browser keeps blocking until the timer would have run out.", muted: true)])
+        // Real icons from this Mac where possible, so the picture means something.
+        let ws = NSWorkspace.shared
+        var icons: [NSImage] = []
+        for app in Suggestions.apps where icons.count < 4 {
+            if let url = ws.urlForApplication(withBundleIdentifier: app.id) { icons.append(ws.icon(forFile: url.path)) }
+        }
+        for id in store.config.blockedApps where icons.count < 4 {
+            if let url = ws.urlForApplication(withBundleIdentifier: id), let img = Optional(ws.icon(forFile: url.path)), !icons.contains(img) { icons.append(img) }
+        }
+        while icons.count < 4 { icons.append(NSImage(systemSymbolName: "app.dashed", accessibilityDescription: nil)!) }
+
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.spacing = 14
+        row.alignment = .centerY
+        for img in icons {
+            let cell = NSView()
+            cell.translatesAutoresizingMaskIntoConstraints = false
+            cell.widthAnchor.constraint(equalToConstant: 64).isActive = true
+            cell.heightAnchor.constraint(equalToConstant: 64).isActive = true
+            let iv = NSImageView(image: img)
+            iv.imageScaling = .scaleProportionallyUpOrDown
+            iv.alphaValue = 0.3
+            iv.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(iv)
+            let badge = NSImageView(image: NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: "hidden")!)
+            badge.symbolConfiguration = .init(pointSize: 13, weight: .semibold)
+            badge.contentTintColor = .white
+            badge.wantsLayer = true
+            badge.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+            badge.layer?.cornerRadius = 11
+            badge.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(badge)
+            NSLayoutConstraint.activate([
+                iv.leadingAnchor.constraint(equalTo: cell.leadingAnchor), iv.topAnchor.constraint(equalTo: cell.topAnchor),
+                iv.widthAnchor.constraint(equalToConstant: 56), iv.heightAnchor.constraint(equalToConstant: 56),
+                badge.widthAnchor.constraint(equalToConstant: 22), badge.heightAnchor.constraint(equalToConstant: 22),
+                badge.trailingAnchor.constraint(equalTo: cell.trailingAnchor), badge.bottomAnchor.constraint(equalTo: cell.bottomAnchor),
+            ])
+            row.addArrangedSubview(cell)
+        }
+        let arrow = NSImageView(image: NSImage(systemSymbolName: "arrow.left", accessibilityDescription: nil)!)
+        arrow.symbolConfiguration = .init(pointSize: 18, weight: .medium)
+        arrow.contentTintColor = .tertiaryLabelColor
+        let busy = NSTextField(labelWithString: "BUSY")
+        busy.font = .systemFont(ofSize: 15, weight: .heavy)
+        busy.textColor = .white
+        busy.wantsLayer = true
+        busy.layer?.backgroundColor = NSColor(calibratedRed: 0.9, green: 0.28, blue: 0.3, alpha: 1).cgColor
+        busy.layer?.cornerRadius = 6
+        busy.alignment = .center
+        busy.translatesAutoresizingMaskIntoConstraints = false
+        busy.widthAnchor.constraint(equalToConstant: 72).isActive = true
+        busy.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        let scene = NSStackView(views: [row, arrow, busy])
+        scene.orientation = .horizontal
+        scene.alignment = .centerY
+        scene.spacing = 18
+        let sceneBox = NSStackView(views: [scene])
+        sceneBox.alignment = .centerX
+        sceneBox.translatesAutoresizingMaskIntoConstraints = false
+        sceneBox.widthAnchor.constraint(equalToConstant: 536).isActive = true
+        sceneBox.edgeInsets = NSEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+
+        func point(_ symbol: String, _ text: String) -> NSView {
+            let i = NSImageView(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)!)
+            i.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+            i.contentTintColor = .secondaryLabelColor
+            i.translatesAutoresizingMaskIntoConstraints = false
+            i.widthAnchor.constraint(equalToConstant: 22).isActive = true
+            let l = label(text)
+            l.preferredMaxLayoutWidth = 500
+            let r = NSStackView(views: [i, l])
+            r.orientation = .horizontal
+            r.alignment = .firstBaseline
+            r.spacing = 8
+            return r
+        }
+        return page("Apps hide, they don't quit",
+                    "While the bar is busy, the apps on your list vanish the moment they come to the front.",
+                    [sceneBox,
+                     point("checkmark.circle", "Nothing closes. Unsaved work stays put."),
+                     point("clock.arrow.circlepath", "Timer ends, the apps are back where they were."),
+                     point("safari", "Websites show a block page with the bar's screen on it."),
+                     point("lock", "Quit BusyBlock mid-session? The browser still blocks until the timer runs out.")])
     }
 
     // MARK: Page 4 — startup and icons
