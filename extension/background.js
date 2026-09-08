@@ -105,8 +105,9 @@ async function applyState(state) {
 
 function updateBadge(state) {
   if (!api.action || !api.action.setBadgeText) return;
-  api.action.setBadgeText({ text: state.isBlocking ? "ON" : "" });
-  if (api.action.setBadgeBackgroundColor) api.action.setBadgeBackgroundColor({ color: "#E5484D" });
+  const down = !!state.helperDown;
+  api.action.setBadgeText({ text: down ? "!" : state.isBlocking ? "ON" : "" });
+  if (api.action.setBadgeBackgroundColor) api.action.setBadgeBackgroundColor({ color: down ? "#F0A020" : "#E5484D" });
 }
 
 function updateRules(state) {

@@ -41,6 +41,21 @@
     siteBtn.disabled = !state;
   }
 
+  // Helper down: offer to start it. Safari can ask the app extension's native
+  // side (we live inside BusyBlock.app); other browsers open busyblock://open,
+  // which macOS routes to the app after a one-time "open BusyBlock?" prompt.
+  const IS_SAFARI = api.runtime.getURL("").startsWith("safari-web-extension://");
+  const launchBtn = document.getElementById("launchApp");
+  launchBtn.addEventListener("click", () => {
+    launchBtn.disabled = true;
+    const done = () => setTimeout(() => { launchBtn.disabled = false; refresh(); }, 2500);
+    if (IS_SAFARI && api.runtime.sendNativeMessage) {
+      api.runtime.sendNativeMessage("application.id", { type: "launch" }).then(done, done);
+    } else {
+      api.tabs.create({ url: "busyblock://open" }).then(done, done);
+    }
+  });
+
   document.getElementById("openApp").addEventListener("click", () => {
     fetch("http://127.0.0.1:" + currentPort + "/open", { method: "POST" })
       .then(() => { window.close(); })
@@ -67,6 +82,8 @@
   function render() {
     if (!state) return;
     renderSite();
+    launchBtn.hidden = !state.helperDown;
+    document.getElementById("openApp").hidden = !!state.helperDown;
     if (state.isBlocking && state.showScreen !== false && Date.now() - lastFrameAt > 2000) {
       device.classList.remove("idle");
       drawFrame(panel, clockFrame(state.endsAt ? formatRemaining(state.endsAt) : "∞"));

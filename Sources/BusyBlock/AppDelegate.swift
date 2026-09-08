@@ -142,6 +142,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// busyblock://open from the browser popup (Chrome and friends).
+    func application(_ application: NSApplication, open urls: [URL]) { showSettings() }
+
     /// Dock/Finder click on a running app.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         showSettings()
