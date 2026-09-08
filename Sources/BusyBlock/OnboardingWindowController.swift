@@ -213,19 +213,28 @@ final class OnboardingWindowController: NSWindowController {
     // MARK: Page 1 — find the bar
 
     private func pageFind() -> NSView {
+        // One title (the page's), then the bar centred, then one status line.
         findSpinner.style = .spinning
         findSpinner.controlSize = .small
         findSpinner.isDisplayedWhenStopped = false
-        findTitle.font = .systemFont(ofSize: 16, weight: .semibold)
+        findTitle.font = .systemFont(ofSize: 14, weight: .medium)
+        findText.font = .systemFont(ofSize: 13)
+        findText.textColor = .secondaryLabelColor
+        findText.alignment = .center
+        findText.preferredMaxLayoutWidth = 480
+        findPanel.translatesAutoresizingMaskIntoConstraints = false
+        findPanel.widthAnchor.constraint(equalToConstant: 380).isActive = true
+        findPanel.heightAnchor.constraint(equalToConstant: 380 * 248 / 768).isActive = true
         let head = NSStackView(views: [findSpinner, findTitle])
         head.orientation = .horizontal
         head.spacing = 8
-        findText.font = .systemFont(ofSize: 13)
-        findText.textColor = .secondaryLabelColor
-        findText.preferredMaxLayoutWidth = 536
-        findPanel.translatesAutoresizingMaskIntoConstraints = false
-        findPanel.widthAnchor.constraint(equalToConstant: 360).isActive = true
-        findPanel.heightAnchor.constraint(equalToConstant: 360 * 248 / 768).isActive = true
+        let centre = NSStackView(views: [findPanel, head, findText])
+        centre.orientation = .vertical
+        centre.alignment = .centerX
+        centre.spacing = 10
+        centre.setCustomSpacing(16, after: findPanel)
+        centre.translatesAutoresizingMaskIntoConstraints = false
+        centre.widthAnchor.constraint(equalToConstant: 536).isActive = true
 
         hostField.placeholderString = "Bar address, e.g. 10.0.4.20 or 192.168.1.50"
         tokenField.placeholderString = "API token, only if access protection is on"
@@ -240,8 +249,10 @@ final class OnboardingWindowController: NSWindowController {
         manualBox.addArrangedSubview(retry)
         manualBox.isHidden = true
 
+        manualBox.translatesAutoresizingMaskIntoConstraints = false
+        manualBox.widthAnchor.constraint(equalToConstant: 536).isActive = true
         return page("Let's find your BUSY Bar", "BusyBlock hides apps and blocks websites while the bar's timer is running, so first it needs to see the bar.",
-                    [head, findPanel, findText, manualBox])
+                    [centre, manualBox])
     }
 
     private func refreshFind() {
@@ -257,7 +268,7 @@ final class OnboardingWindowController: NSWindowController {
         } else if s.barConnected {
             findTitle.stringValue = "Found your BUSY Bar"
             let usb = s.host == BarLocator.usbHost
-            findText.stringValue = usb ? "Connected over USB. Everything else is optional; let's set it up." : "Connected over Wi-Fi (\(s.host)). Let's set it up."
+            findText.stringValue = usb ? "Connected over USB. Let's set it up." : "Connected over Wi-Fi (\(s.host)). Let's set it up."
         } else if searching {
             findTitle.stringValue = "Looking for the bar…"
             findText.stringValue = "Checking USB, busybar.local and Bonjour."
