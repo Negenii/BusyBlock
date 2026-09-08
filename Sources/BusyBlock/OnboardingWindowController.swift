@@ -64,6 +64,7 @@ final class OnboardingWindowController: NSWindowController {
                 self.netStatus.stringValue = "✓ Local network access is on."
                 self.netButton.title = "Access granted"; self.netButton.isEnabled = false
                 self.netDeniedBox.isHidden = true
+                if self.index == 0 { self.nextButton.isEnabled = true }
             }
         }.store(in: &cancellables)
         controller.$discovering.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
@@ -190,6 +191,7 @@ final class OnboardingWindowController: NSWindowController {
             case .granted:
                 netStatus.stringValue = "✓ Local network access is on."
                 netButton.title = "Access granted"
+                nextButton.isEnabled = true
             case .denied:
                 netStatus.stringValue = "Access was declined."
                 netDeniedBox.isHidden = false
@@ -400,6 +402,7 @@ final class OnboardingWindowController: NSWindowController {
         for (k, d) in dots.arrangedSubviews.enumerated() { (d as? DotView)?.color = k == index ? .controlAccentColor : .quaternaryLabelColor }
         backButton.isHidden = index == 0
         nextButton.title = index == pages.count - 1 ? "Open Settings" : "Continue"
+        nextButton.isEnabled = index != 0 || netResult == .granted
         skipButton.isHidden = index == pages.count - 1
         if index == 1 { refreshFind() }
         if index == 4 {
