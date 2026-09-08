@@ -74,8 +74,13 @@ let applyRulesQueue = Promise.resolve();
 function applyRules(api, state, port) {
   const domains = state && state.isBlocking && Array.isArray(state.domains) ? state.domains : [];
   const blockedPage = api.runtime.getURL("blocked.html");
-  const viaHelper = blockedPage.startsWith("safari-web-extension://") ? goURL(port) : null;
-  const wanted = rulesFor(domains, blockedPage, viaHelper);
+  // Direct redirect to our own page everywhere. Safari refuses the body of an
+  // https→http redirect (so a helper-served hop page can't work), and a
+  // forced hop from the worker would commit Safari's top-hit preload while the
+  // person is still typing. The extension URL is a secure scheme, and a
+  // preloaded block page just stays hidden until they actually go there.
+  // Safari's per-install UUID is handled by rewriting rules on startup.
+  const wanted = rulesFor(domains, blockedPage, null);
   const norm = (rs) => JSON.stringify(rs.map((r) => ({ id: r.id, action: r.action, condition: r.condition })).sort((x, y) => x.id - y.id));
   applyRulesQueue = applyRulesQueue.then(async () => {
     const existing = await api.declarativeNetRequest.getDynamicRules();

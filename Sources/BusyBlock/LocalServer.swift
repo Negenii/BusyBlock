@@ -173,46 +173,6 @@ final class LocalServer {
             return
         }
 
-        if method == "GET" && path == "/blockpage" {
-            // The block page URL of the browser asking (learned from its worker).
-            let kind = Self.browserKind(Self.header(requestHead, "user-agent") ?? "")
-            let url = blockedPageURL[kind]
-            let body = Data((url.map { "{\"url\":\"\($0)\"}" } ?? "{\"url\":null}").utf8)
-            var head = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n"
-            head += "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
-            conn.send(content: Data(head.utf8) + body, completion: .contentProcessed { _ in conn.cancel() })
-            return
-        }
-
-        if method == "GET" && path == "/go" {
-            // Safari's redirect lands here. If this browser's worker told us its
-            // block page URL, hop there right away; otherwise the extension's
-            // content script does it, and the text below shows only if neither can.
-            let kind = Self.browserKind(Self.header(requestHead, "user-agent") ?? "")
-            let u = query["u"] ?? ""
-            let target = blockedPageURL[kind].map { $0 + "?u=" + (u.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "") }
-            // Hop only once this page is actually on screen. Safari preloads the
-            // address bar's top hit in the background while the person is still
-            // typing; a redirect that fired then would drag them to the block page
-            // for a site they never chose. Hidden preloads just sit here.
-            let hop = target.map { t in
-                "<script>(function(){var go=function(){location.replace(\"\(t)\")};"
-                + "if(document.visibilityState==='visible'&&!document.prerendering){go();}"
-                + "else{document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')go();});"
-                + "document.addEventListener('prerenderingchange',go);}})()</script>"
-            } ?? ""
-            let html = """
-            <!doctype html><meta charset="utf-8"><title>BusyBlock</title>\(hop)
-            <body style="margin:0;background:#0e0c0c;color:#9a9a96;font:15px -apple-system,sans-serif;display:grid;place-items:center;height:100vh">
-            <p>Blocked while the BUSY Bar is busy. If this page stays, the BusyBlock extension is not enabled for this site: check Safari → Settings → Extensions → BusyBlock → Allow on every website.</p>
-            """
-            let body = Data(html.utf8)
-            var head = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\n"
-            head += "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
-            conn.send(content: Data(head.utf8) + body, completion: .contentProcessed { _ in conn.cancel() })
-            return
-        }
-
         if method == "GET" && path == "/events" {
             let ua = Self.header(requestHead, "user-agent") ?? "?"
             let n = sseClients.count + 1

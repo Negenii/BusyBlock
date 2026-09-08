@@ -16,7 +16,7 @@ test("applyRules writes helper-based rules in Safari and clears them when not bl
   const changed = await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
   assert.equal(changed, true);
   assert.equal(f.rules().length, 2);
-  assert.equal(f.rules()[0].action.redirect.regexSubstitution, "http://127.0.0.1:48321/go?u=\\0");
+  assert.equal(f.rules()[0].action.redirect.regexSubstitution, "safari-web-extension://OLD-UUID/blocked.html?u=\\0");
   const again = await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
   assert.equal(again, false, "identical rules are left alone");
   await applyRules(f.api, { isBlocking: false, domains: ["x.com"] }, 48321);
@@ -58,10 +58,10 @@ test("rulesFor makes redirect + block per entry with unique ids", () => {
   assert.equal(rules[3].condition.urlFilter, "||reddit.com^");
 });
 
-test("rulesFor via helper (Safari) never embeds the extension URL", () => {
-  const rules = rulesFor(["youtube.com"], "safari-web-extension://X/blocked.html", goURL(48321));
-  assert.equal(rules[0].action.redirect.regexSubstitution, "http://127.0.0.1:48321/go?u=\\0");
-  assert.ok(!JSON.stringify(rules).includes("safari-web-extension://X"));
+test("applyRules redirects straight to the extension page in Safari too", async () => {
+  const f = fakeApi("safari-web-extension://UUID/", []);
+  await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
+  assert.equal(f.rules()[0].action.redirect.regexSubstitution, "safari-web-extension://UUID/blocked.html?u=\\0");
 });
 
 test("formatRemaining and stateURL", () => {

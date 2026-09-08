@@ -16,11 +16,6 @@
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") fn(); }, { once: true });
     document.addEventListener("prerenderingchange", fn, { once: true });
   };
-  if (/^http:\/\/127\.0\.0\.1:\d+\/go(\?|$)/.test(url)) {
-    const u = new URLSearchParams(location.search).get("u") || "";
-    whenVisible(() => location.replace(api.runtime.getURL("blocked.html") + "?u=" + encodeURIComponent(u)));
-    return;
-  }
   let reply;
   try { reply = api.runtime.sendMessage({ type: "shouldBlock", url }); } catch (_) { return; }
   if (!reply || !reply.then) return;
