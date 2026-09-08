@@ -79,6 +79,7 @@ final class BlockController: ObservableObject {
     func linkSuspect() {
         client.quick = true
         lastDiscovery = .distantPast
+        lastPreferredCheck = .distantPast   // a re-plugged USB cable should win back promptly
         failures = max(failures, maxFailures - 1)
         Task { await pollOnce() }
     }
