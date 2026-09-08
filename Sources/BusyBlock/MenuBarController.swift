@@ -15,7 +15,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private let statusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let detailItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-    private let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
 
     init(controller: BlockController, store: ConfigStore, openSettings: @escaping () -> Void) {
         self.controller = controller
@@ -43,27 +42,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let folder = NSMenuItem(title: "Open Config Folder", action: #selector(openFolder), keyEquivalent: "")
-        folder.target = self
-        menu.addItem(folder)
-        let ext = NSMenuItem(title: "Show Browser Extension Folder", action: #selector(openExtensionFolder), keyEquivalent: "")
-        ext.target = self
-        menu.addItem(ext)
-        loginItem.target = self
-        menu.addItem(loginItem)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit BusyBlock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
         item.menu = menu
     }
 
-    func menuWillOpen(_ menu: NSMenu) {
-        if #available(macOS 13, *) {
-            loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-            loginItem.isHidden = Bundle.main.bundleURL.pathExtension != "app"
-        }
-        refresh()
-    }
+    func menuWillOpen(_ menu: NSMenu) { refresh() }
 
     private func refresh() {
         let s = controller.state
@@ -133,30 +118,4 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func showSettings() { openSettings() }
 
-    @objc private func openFolder() {
-        NSWorkspace.shared.activateFileViewerSelecting([store.url])
-    }
-
-    @objc private func openExtensionFolder() {
-        let candidates = [
-            Bundle.main.resourceURL?.appendingPathComponent("extension"),
-            URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("extension"),
-        ].compactMap { $0 }
-        if let dir = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) {
-            NSWorkspace.shared.activateFileViewerSelecting([dir])
-        }
-    }
-
-    @objc private func toggleLogin() {
-        guard #available(macOS 13, *) else { return }
-        do {
-            if SMAppService.mainApp.status == .enabled { try SMAppService.mainApp.unregister() }
-            else { try SMAppService.mainApp.register() }
-        } catch {
-            let alert = NSAlert()
-            alert.messageText = "Launch at Login failed"
-            alert.informativeText = error.localizedDescription
-            alert.runModal()
-        }
-    }
 }

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import ServiceManagement
 import UniformTypeIdentifiers
 import BusyBlockCore
 
@@ -29,6 +30,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let restCheck = NSButton(checkboxWithTitle: "Keep blocking during rest phases", target: nil, action: nil)
     private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser", target: nil, action: nil)
     private let timerCheck = NSButton(checkboxWithTitle: "Show the countdown in the menu bar (the BUSY app shows it too)", target: nil, action: nil)
+    private let loginCheck = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
 
     // Apps
     private let appChips = FlowView()
@@ -98,6 +100,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             check.action = #selector(toggled)
             root.addArrangedSubview(indent(check))
         }
+        loginCheck.target = self
+        loginCheck.action = #selector(toggleLogin)
+        root.addArrangedSubview(indent(loginCheck))
         // Host and token only matter when discovery failed or the bar wants a
         // token; they unfold on their own in those cases.
         advancedToggle.bezelStyle = .inline
@@ -154,10 +159,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         faviconCheck.toolTip = "Asks the site itself for its favicon.ico first; if it has none, asks DuckDuckGo's icon service, which then sees the domain name."
         root.addArrangedSubview(faviconCheck)
 
-        let hint = NSTextField(wrappingLabelWithString: "Changes apply immediately. Config file: \(store.url.path)")
-        hint.textColor = .tertiaryLabelColor
-        hint.font = .systemFont(ofSize: 11)
-        root.addArrangedSubview(hint)
 
         for v in root.arrangedSubviews {
             root.widthAnchor.constraint(equalTo: v.widthAnchor, constant: 48).isActive = true
@@ -232,6 +233,10 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         restCheck.state = c.blockDuringRest ? .on : .off
         screenCheck.state = c.showScreenInBrowser ? .on : .off
         timerCheck.state = c.showTimerInMenuBar ? .on : .off
+        if #available(macOS 13, *) {
+            loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off
+            loginCheck.isEnabled = Bundle.main.bundleURL.pathExtension == "app"
+        }
         if apps != c.blockedApps { apps = c.blockedApps; rebuildAppChips() }
         rebuildAppPills()
         if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
@@ -311,6 +316,16 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     // MARK: - Actions
 
     @objc private func toggled() { saveDebounce.send() }
+
+    @objc private func toggleLogin() {
+        guard #available(macOS 13, *) else { return }
+        do {
+            if loginCheck.state == .on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off
+            let alert = NSAlert(); alert.messageText = "Launch at Login failed"; alert.informativeText = error.localizedDescription; alert.runModal()
+        }
+    }
 
     func controlTextDidChange(_ obj: Notification) {
         if let f = obj.object as? NSTextField, f === hostField || f === tokenField { saveDebounce.send() }
