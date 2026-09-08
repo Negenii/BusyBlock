@@ -23,13 +23,16 @@ public struct Config: Codable, Equatable {
     /// The status-bar icon can be turned off entirely; the settings window is
     /// then reached from the browser popup, Finder, Launchpad or Spotlight.
     public var showMenuBarIcon: Bool
+    /// Regular app (Dock icon, ⌘-Tab) instead of a background one.
+    public var showDockIcon: Bool
 
     public init(barHost: String = "10.0.4.20", barToken: String? = nil,
                 pollIntervalSec: Double = 2, localPort: UInt16 = 48321,
                 blockDuringRest: Bool = false, blockedApps: [String] = [],
                 blockedDomains: [String] = [], showScreenInBrowser: Bool = true,
                 autoDiscover: Bool = true, faviconFallback: Bool = true,
-                showTimerInMenuBar: Bool = false, showMenuBarIcon: Bool = true) {
+                showTimerInMenuBar: Bool = false, showMenuBarIcon: Bool = true,
+                showDockIcon: Bool = false) {
         self.barHost = barHost
         self.barToken = barToken
         self.pollIntervalSec = pollIntervalSec
@@ -42,6 +45,7 @@ public struct Config: Codable, Equatable {
         self.faviconFallback = faviconFallback
         self.showTimerInMenuBar = showTimerInMenuBar
         self.showMenuBarIcon = showMenuBarIcon
+        self.showDockIcon = showDockIcon
     }
 
     public static let defaults = Config()
@@ -76,6 +80,7 @@ public struct Config: Codable, Equatable {
         if let v = d.faviconFallback { c.faviconFallback = v }
         if let v = d.showTimerInMenuBar { c.showTimerInMenuBar = v }
         if let v = d.showMenuBarIcon { c.showMenuBarIcon = v }
+        if let v = d.showDockIcon { c.showDockIcon = v }
         if let v = d.blockedDomains {
             c.blockedDomains = Array(Set(v.map(Domain.normalize).filter { !$0.isEmpty })).sorted()
         }
@@ -110,5 +115,6 @@ public struct Config: Codable, Equatable {
         var faviconFallback: Bool?
         var showTimerInMenuBar: Bool?
         var showMenuBarIcon: Bool?
+        var showDockIcon: Bool?
     }
 }

@@ -34,6 +34,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let timerCheck = NSButton(checkboxWithTitle: "Show the countdown in the menu bar (the BUSY app shows it too)", target: nil, action: nil)
     private let loginCheck = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
     private let menuIconCheck = NSButton(checkboxWithTitle: "Show icon in the menu bar", target: nil, action: nil)
+    private let dockIconCheck = NSButton(checkboxWithTitle: "Show icon in the Dock", target: nil, action: nil)
 
     // Apps
     private let appChips = FlowView()
@@ -104,7 +105,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.addArrangedSubview(topRow)
 
         root.addArrangedSubview(header("BUSY Bar"))
-        for check in [discoverCheck, restCheck, screenCheck, menuIconCheck, timerCheck] {
+        for check in [discoverCheck, restCheck, screenCheck, menuIconCheck, dockIconCheck, timerCheck] {
             check.target = self
             check.action = #selector(toggled)
             root.addArrangedSubview(check)
@@ -276,6 +277,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         screenCheck.state = c.showScreenInBrowser ? .on : .off
         timerCheck.state = c.showTimerInMenuBar ? .on : .off
         menuIconCheck.state = c.showMenuBarIcon ? .on : .off
+        dockIconCheck.state = c.showDockIcon ? .on : .off
         timerCheck.isEnabled = c.showMenuBarIcon
         if #available(macOS 13, *) {
             loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -301,6 +303,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         c.showScreenInBrowser = screenCheck.state == .on
         c.showTimerInMenuBar = timerCheck.state == .on
         c.showMenuBarIcon = menuIconCheck.state == .on
+        c.showDockIcon = dockIconCheck.state == .on
         c.faviconFallback = faviconCheck.state == .on
         c.blockedApps = apps
         c.blockedDomains = domains

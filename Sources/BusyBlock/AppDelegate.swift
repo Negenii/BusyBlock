@@ -16,8 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
         store = ConfigStore(log: log)
+        applyDockSetting()
+        store.$config.map(\.showDockIcon).removeDuplicates().dropFirst().receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.applyDockSetting() }.store(in: &cancellables)
         controller = BlockController(config: store.config)
         blocker = AppBlocker(log: log)
         blocker.blockedBundleIDs = Set(store.config.blockedApps)
@@ -120,6 +122,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let event = NSAppleEventManager.shared().currentAppleEvent,
               event.eventClass == kCoreEventClass, event.eventID == kAEOpenApplication else { return false }
         return event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    }
+
+    private func applyDockSetting() {
+        let policy: NSApplication.ActivationPolicy = store.config.showDockIcon ? .regular : .accessory
+        if NSApp.activationPolicy() != policy {
+            NSApp.setActivationPolicy(policy)
+            // Switching to .regular hides windows for a moment; bring ours back.
+            if policy == .regular, let w = settings?.window, w.isVisible { NSApp.activate(ignoringOtherApps: true); w.makeKeyAndOrderFront(nil) }
+        }
     }
 
     private func applyMenuBarSetting() {

@@ -117,6 +117,7 @@ do {
     check(partial.autoDiscover == true, "autoDiscover defaults on")
     check(partial.showTimerInMenuBar == false, "menu-bar countdown defaults off")
     check(partial.showMenuBarIcon == true, "menu-bar icon defaults on")
+    check(partial.showDockIcon == false, "dock icon defaults off")
     let noScreen = try Config.decode(Data(#"{"showScreenInBrowser":false}"#.utf8))
     let noScreenState = BlockDecision.evaluate(snapshot: BusySnapshot(kind: .simple, timeLeftMs: 1000), config: noScreen, now: now)
     check(!noScreenState.showScreen, "showScreen follows config")
