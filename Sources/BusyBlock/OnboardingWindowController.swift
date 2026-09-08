@@ -61,7 +61,7 @@ final class OnboardingWindowController: NSWindowController {
             if let self, self.controller.state.barConnected, self.netResult != .granted {
                 self.netResult = .granted
                 self.netSpinner.stopAnimation(nil)
-                self.netStatus.stringValue = "✓ Local network access is on (the bar answered)."
+                self.netStatus.stringValue = "✓ Local network access is on."
                 self.netButton.title = "Access granted"; self.netButton.isEnabled = false
                 self.netDeniedBox.isHidden = true
             }

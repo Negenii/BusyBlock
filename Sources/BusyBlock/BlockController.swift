@@ -37,7 +37,10 @@ final class BlockController: ObservableObject {
         self.state = .offline(domains: config.blockedDomains, showScreen: config.showScreenInBrowser)
     }
 
+    private(set) var started = false
+
     func start() {
+        started = true
         loop?.cancel()
         loop = Task { [weak self] in
             while !Task.isCancelled {
@@ -70,13 +73,14 @@ final class BlockController: ObservableObject {
         s.domains = new.blockedDomains
         s.showScreen = new.showScreenInBrowser
         apply(s)
-        Task { await pollOnce() }
+        if started { Task { await pollOnce() } }
     }
 
     /// The link probably just died (stream went silent, a network interface
     /// changed): check now with short timeouts and go straight to discovery
     /// if the bar doesn't answer, instead of waiting out three slow polls.
     func linkSuspect() {
+        guard started else { return }   // first run: nothing touches the LAN before the permission step
         client.quick = true
         lastDiscovery = .distantPast
         lastPreferredCheck = .distantPast   // a re-plugged USB cable should win back promptly
