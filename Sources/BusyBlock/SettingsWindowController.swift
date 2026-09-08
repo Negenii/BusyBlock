@@ -50,7 +50,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 910),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 860),
                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         w.title = "BusyBlock"
         w.isReleasedWhenClosed = false
@@ -90,9 +90,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
 
         root.addArrangedSubview(statusCard())
-        devicePanel.translatesAutoresizingMaskIntoConstraints = false
-        root.addArrangedSubview(devicePanel)
-        devicePanel.heightAnchor.constraint(equalTo: devicePanel.widthAnchor, multiplier: 248.0 / 768.0).isActive = true
 
         root.addArrangedSubview(header("BUSY Bar"))
         for check in [discoverCheck, restCheck, screenCheck, timerCheck] {
@@ -179,11 +176,17 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         text.orientation = .vertical
         text.alignment = .leading
         text.spacing = 3
-        let h = NSStackView(views: [statusDot, text])
+        // Small live preview of the bar on the right, like busybar-manager's, only smaller.
+        devicePanel.translatesAutoresizingMaskIntoConstraints = false
+        devicePanel.widthAnchor.constraint(equalToConstant: 240).isActive = true
+        devicePanel.heightAnchor.constraint(equalToConstant: 240 * 248 / 768).isActive = true
+        text.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let h = NSStackView(views: [statusDot, text, devicePanel])
         h.orientation = .horizontal
         h.alignment = .centerY
         h.spacing = 12
-        h.edgeInsets = NSEdgeInsets(top: 14, left: 16, bottom: 14, right: 16)
+        h.edgeInsets = NSEdgeInsets(top: 12, left: 16, bottom: 12, right: 12)
         h.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(h)
         NSLayoutConstraint.activate([
