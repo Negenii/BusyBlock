@@ -659,6 +659,7 @@ final class PickChipView: NSView {
         ])
     }
     required init?(coder: NSCoder) { fatalError() }
+    override func hitTest(_ point: NSPoint) -> NSView? { bounds.contains(convert(point, from: superview)) ? self : nil }
     override func mouseUp(with event: NSEvent) { onTap?() }
 }
 
