@@ -6,14 +6,15 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .library(name: "BusyBlockCore", targets: ["BusyBlockCore"]),
-        .executable(name: "BusyBlock", targets: ["BusyBlock"]),
+        .executable(name: "busyblock-helper", targets: ["BusyBlockHelper"]),
         .executable(name: "busyblock-selftest", targets: ["busyblock-selftest"]),
     ],
     targets: [
         .target(name: "BusyBlockCore"),
         .executableTarget(
-            name: "BusyBlock",
+            name: "BusyBlockHelper",
             dependencies: ["BusyBlockCore"],
+            path: "Sources/BusyBlock",
             linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("Network")]
         ),
         .executableTarget(name: "busyblock-selftest", dependencies: ["BusyBlockCore"]),

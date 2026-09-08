@@ -1,0 +1,64 @@
+# XcodeGen spec: one app (the menu-bar helper) with the Safari extension inside.
+# Regenerate with `xcodegen generate`; build with scripts/build-xcode.sh.
+name: BusyBlock
+options:
+  bundleIdPrefix: me.negenii
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+settings:
+  base:
+    DEVELOPMENT_TEAM: Y9KBUYBB26
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  BusyBlockCore:
+    path: .
+targets:
+  BusyBlock:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/BusyBlock
+    dependencies:
+      - package: BusyBlockCore
+        product: BusyBlockCore
+      - target: BusyBlock Extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.negenii.BusyBlock
+        PRODUCT_NAME: BusyBlock
+        INFOPLIST_FILE: Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        ENABLE_HARDENED_RUNTIME: "YES"
+  BusyBlock Extension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources/SafariExtension/SafariWebExtensionHandler.swift
+      # Web extension files go to the appex's Resources root, folders as folders.
+      - path: extension
+        buildPhase: resources
+        excludes: ["icons", "brand"]
+      - path: extension/icons
+        type: folder
+        buildPhase: resources
+      - path: extension/brand
+        type: folder
+        buildPhase: resources
+    info:
+      path: Sources/SafariExtension/Info.plist
+      properties:
+        CFBundleDisplayName: BusyBlock
+        NSHumanReadableCopyright: "© 2026 Evgeny Ugreninov"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.negenii.BusyBlock.Extension
+        PRODUCT_NAME: BusyBlock Extension
+        ENABLE_HARDENED_RUNTIME: "YES"
