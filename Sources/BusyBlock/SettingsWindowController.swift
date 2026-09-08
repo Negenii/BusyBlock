@@ -484,6 +484,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     @objc private func toggled() { saveDebounce.send() }
 
+    var onReplayOnboarding: (() -> Void)?
+    @objc private func replayOnboarding() { onReplayOnboarding?() }
+
     @objc private func toggleLogin() {
         guard #available(macOS 13, *) else { return }
         do {

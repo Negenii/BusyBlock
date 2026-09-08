@@ -193,7 +193,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showSettings(highlightSetup: Bool = false) {
         guard store != nil, controller != nil else { openRequestedBeforeLaunch = true; return }
         if !store.config.onboardingDone && onboarding == nil && !highlightSetup { showOnboarding(); return }
-        if settings == nil { settings = SettingsWindowController(store: store, controller: controller) }
+        if settings == nil {
+            settings = SettingsWindowController(store: store, controller: controller)
+            settings?.onReplayOnboarding = { [weak self] in self?.settings?.window?.orderOut(nil); self?.showOnboarding() }
+        }
         NSApp.activate(ignoringOtherApps: true)
         settings?.showWindow(nil)
         settings?.window?.makeKeyAndOrderFront(nil)
