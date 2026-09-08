@@ -62,7 +62,18 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         w.isReleasedWhenClosed = false
         w.titlebarAppearsTransparent = true
         super.init(window: w)
-        w.contentView = buildContent()
+        let container = DropContainerView()
+        container.zone = dropZone
+        container.onDrop = { [weak self] urls in self?.addApps(urls) }
+        let content = buildContent()
+        content.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.leadingAnchor.constraint(equalTo: container.leadingAnchor), content.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            content.topAnchor.constraint(equalTo: container.topAnchor), content.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+        container.installOverlay()
+        w.contentView = container
         w.center()
 
         controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
@@ -138,12 +149,17 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
         root.addArrangedSubview(header("Apps to hide while the bar is busy"))
         appChips.spacing = 8
-        root.addArrangedSubview(appChips)
-        dropZone.onDrop = { [weak self] urls in self?.addApps(urls) }
         dropZone.onClick = { [weak self] in self?.pickApp() }
-        root.addArrangedSubview(dropZone)
         dropZone.translatesAutoresizingMaskIntoConstraints = false
-        dropZone.heightAnchor.constraint(equalToConstant: 64).isActive = true
+        dropZone.widthAnchor.constraint(equalToConstant: 100).isActive = true
+        dropZone.heightAnchor.constraint(equalToConstant: 100).isActive = true
+        appChips.translatesAutoresizingMaskIntoConstraints = false
+        appChips.widthAnchor.constraint(equalToConstant: 592 - 100 - 12).isActive = true
+        let appsRow = NSStackView(views: [appChips, dropZone])
+        appsRow.orientation = .horizontal
+        appsRow.alignment = .top
+        appsRow.spacing = 12
+        root.addArrangedSubview(appsRow)
         appPillsHint = NSTextField(labelWithString: "Installed apps people usually hide, one click to add:")
         appPillsHint.textColor = .secondaryLabelColor
         appPillsHint.font = .systemFont(ofSize: 11)
@@ -544,28 +560,29 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
 // MARK: - Views
 
-/// Dashed "drop apps here" target; also clickable to open the file picker.
+/// Small dashed square: click to pick apps. Drags are handled by the window's
+/// DropContainerView, which grows this look over the whole window.
 final class DropZoneView: NSView {
-    var onDrop: (([URL]) -> Void)?
     var onClick: (() -> Void)?
-    private var active = false { didSet { needsDisplay = true } }
-    private let label = NSTextField(labelWithString: "")
+    var active = false { didSet { needsDisplay = true } }
+    private let label = NSTextField(wrappingLabelWithString: "Drop apps\nor click")
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        registerForDraggedTypes([.fileURL])
         let icon = NSImageView(image: NSImage(systemSymbolName: "square.and.arrow.down.on.square", accessibilityDescription: nil)!)
         icon.contentTintColor = .secondaryLabelColor
-        icon.symbolConfiguration = .init(pointSize: 18, weight: .regular)
-        label.stringValue = "Drop apps here from Finder, or click to choose"
+        icon.symbolConfiguration = .init(pointSize: 20, weight: .regular)
         label.textColor = .secondaryLabelColor
-        label.font = .systemFont(ofSize: 12)
+        label.font = .systemFont(ofSize: 11)
+        label.alignment = .center
         let s = NSStackView(views: [icon, label])
-        s.orientation = .horizontal
-        s.spacing = 8
+        s.orientation = .vertical
+        s.alignment = .centerX
+        s.spacing = 6
         s.translatesAutoresizingMaskIntoConstraints = false
         addSubview(s)
-        NSLayoutConstraint.activate([s.centerXAnchor.constraint(equalTo: centerXAnchor), s.centerYAnchor.constraint(equalTo: centerYAnchor)])
+        NSLayoutConstraint.activate([s.centerXAnchor.constraint(equalTo: centerXAnchor), s.centerYAnchor.constraint(equalTo: centerYAnchor),
+                                     s.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, constant: -8)])
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -577,35 +594,99 @@ final class DropZoneView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let rect = bounds.insetBy(dx: 1, dy: 1)
-        let path = NSBezierPath(roundedRect: rect, xRadius: 10, yRadius: 10)
+        DropContainerView.drawDashed(in: bounds, active: active)
+        label.textColor = active ? .controlAccentColor : .secondaryLabelColor
+    }
+
+    override func mouseUp(with event: NSEvent) { onClick?() }
+}
+
+/// Window content view. When apps are dragged anywhere over the window, the
+/// small drop square grows into a full-window target with an animation and
+/// shrinks back when the drag leaves or ends.
+final class DropContainerView: NSView {
+    weak var zone: DropZoneView?
+    var onDrop: (([URL]) -> Void)?
+    private let overlay = DropOverlayView()
+
+    static func drawDashed(in rect: NSRect, active: Bool) {
+        let path = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 12, yRadius: 12)
         (active ? NSColor.controlAccentColor.withAlphaComponent(0.12) : NSColor.quaternaryLabelColor.withAlphaComponent(0.05)).setFill()
         path.fill()
         path.lineWidth = active ? 2 : 1
         path.setLineDash([6, 4], count: 2, phase: 0)
         (active ? NSColor.controlAccentColor : NSColor.tertiaryLabelColor).setStroke()
         path.stroke()
-        label.textColor = active ? .controlAccentColor : .secondaryLabelColor
+    }
+
+    func installOverlay() {
+        registerForDraggedTypes([.fileURL])
+        overlay.isHidden = true
+        overlay.wantsLayer = true
+        addSubview(overlay, positioned: .above, relativeTo: nil)
+    }
+
+    private var zoneFrame: NSRect {
+        guard let zone else { return NSRect(x: bounds.midX - 50, y: bounds.midY - 50, width: 100, height: 100) }
+        return zone.convert(zone.bounds, to: self)
+    }
+
+    private func grow() {
+        overlay.frame = zoneFrame
+        overlay.isHidden = false
+        zone?.active = true
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            overlay.animator().frame = bounds.insetBy(dx: 14, dy: 14)
+        }
+    }
+
+    private func shrink() {
+        zone?.active = false
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            overlay.animator().frame = zoneFrame
+        }, completionHandler: { [weak self] in self?.overlay.isHidden = true })
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        let ok = !Self.appURLs(sender).isEmpty
-        active = ok
-        return ok ? .copy : []
+        guard !DropZoneView.appURLs(sender).isEmpty else { return [] }
+        grow()
+        return .copy
     }
 
-    override func draggingExited(_ sender: NSDraggingInfo?) { active = false }
-    override func draggingEnded(_ sender: NSDraggingInfo) { active = false }
+    override func draggingExited(_ sender: NSDraggingInfo?) { shrink() }
+    override func draggingEnded(_ sender: NSDraggingInfo) { if !overlay.isHidden { shrink() } }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        let urls = Self.appURLs(sender)
-        active = false
+        let urls = DropZoneView.appURLs(sender)
+        shrink()
         guard !urls.isEmpty else { return false }
         onDrop?(urls)
         return true
     }
+}
 
-    override func mouseUp(with event: NSEvent) { onClick?() }
+/// The grown drop target drawn over the whole window.
+final class DropOverlayView: NSView {
+    private let label = NSTextField(labelWithString: "Drop to hide these apps while the bar is busy")
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        label.font = .systemFont(ofSize: 15, weight: .medium)
+        label.textColor = .controlAccentColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([label.centerXAnchor.constraint(equalTo: centerXAnchor), label.centerYAnchor.constraint(equalTo: centerYAnchor)])
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.windowBackgroundColor.withAlphaComponent(0.92).setFill()
+        bounds.fill()
+        DropContainerView.drawDashed(in: bounds, active: true)
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }   // never steal clicks
 }
 
 /// A blocked website: favicon, domain, remove button, in a rounded pill.
