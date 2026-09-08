@@ -1,6 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { shouldBlock, rulesFor, applyRules, formatRemaining, stateURL, goURL } = require("../../extension/shared.js");
+const { shouldBlock, rulesFor, applyRules, stateAfterHelperLoss, formatRemaining, stateURL, goURL } = require("../../extension/shared.js");
+
+test("helper loss holds a running session until its end", () => {
+  const now = 1_000_000;
+  const running = { isBlocking: true, domains: ["x.com"], endsAt: now + 60_000, barConnected: true, phase: "work" };
+  const held = stateAfterHelperLoss(running, now, now - 5000);
+  assert.equal(held.isBlocking, true);
+  assert.equal(held.helperDown, true);
+  assert.deepEqual(held.domains, ["x.com"]);
+  assert.equal(stateAfterHelperLoss(running, now + 61_000, now).isBlocking, false, "released after endsAt");
+  const infinite = { isBlocking: true, domains: ["x.com"], endsAt: 0 };
+  assert.equal(stateAfterHelperLoss(infinite, now + 10 * 60_000, now).isBlocking, true, "infinite held for a while");
+  assert.equal(stateAfterHelperLoss(infinite, now + 31 * 60_000, now).isBlocking, false, "…but not forever");
+  assert.equal(stateAfterHelperLoss({ isBlocking: false, domains: [] }, now, now).isBlocking, false);
+  assert.equal(stateAfterHelperLoss(null, now, now).helperDown, true);
+});
 
 function fakeApi(base, initial) {
   let rules = initial.slice();

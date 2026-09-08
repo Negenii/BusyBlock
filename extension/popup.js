@@ -70,8 +70,13 @@
     timeEl.hidden = mirror || !state.isBlocking;
     timeEl.textContent = formatRemaining(state.endsAt) || "∞";
     dot.className = "dot " + (state.isBlocking ? "on" : state.barConnected ? "idle" : "");
-    if (!state.barConnected) {
-      line.textContent = state.phase === "offline" && !state.domains.length ? "Helper not running" : "Bar unreachable";
+    if (state.helperDown && state.isBlocking) {
+      dot.className = "dot on";
+      const rem = formatRemaining(state.endsAt);
+      line.textContent = "Blocking" + (rem ? " · " + rem + " left" : "");
+      detail.textContent = "BusyBlock app isn't answering; holding the session it last reported.";
+    } else if (!state.barConnected) {
+      line.textContent = state.helperDown ? "Helper not running" : "Bar unreachable";
       detail.textContent = "Start BusyBlock in the menu bar and connect the bar.";
     } else if (state.isBlocking) {
       const rem = formatRemaining(state.endsAt);

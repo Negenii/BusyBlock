@@ -53,18 +53,21 @@ function sync() {
   return slot;
 }
 
+let lastContact = 0;   // when the helper last answered
 async function syncNow() {
   const seq = ++fetchSeq;
   try {
     const state = await fetchState();
     if (seq !== fetchSeq) return lastState;   // a newer response already landed
+    lastContact = Date.now();
     await applyState(state);
     return state;
   } catch (_) {
     if (seq !== fetchSeq) return lastState;
-    // Helper not running: fail open.
-    await applyState(offlineState());
-    return null;
+    // Helper gone: hold the known session to its end, then release.
+    const held = stateAfterHelperLoss(lastState, Date.now(), lastContact || Date.now());
+    await applyState(held);
+    return held.isBlocking ? held : null;
   }
 }
 

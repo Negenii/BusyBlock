@@ -92,7 +92,19 @@ function applyRules(api, state, port) {
 }
 
 function offlineState() {
-  return { isBlocking: false, domains: [], endsAt: 0, paused: false, barConnected: false, phase: "offline" };
+  return { isBlocking: false, domains: [], endsAt: 0, paused: false, barConnected: false, phase: "offline", helperDown: true };
+}
+
+// The helper stopped answering (quit, crashed, being updated). Rather than
+// unblocking on the spot, keep the session we last knew about running to its
+// end: the countdown was already agreed with the bar. Sessions without an end
+// (INFINITE) are held for HOLD_INFINITE_MS after the last contact.
+const HOLD_INFINITE_MS = 30 * 60 * 1000;
+function stateAfterHelperLoss(last, nowMs, lastContactMs) {
+  if (!last || !last.isBlocking) return offlineState();
+  const until = last.endsAt || (lastContactMs + HOLD_INFINITE_MS);
+  if (nowMs >= until) return offlineState();
+  return Object.assign({}, last, { helperDown: true, endsAt: last.endsAt || until, barConnected: false });
 }
 
 function formatRemaining(endsAtMs, nowMs) {
@@ -104,5 +116,5 @@ function formatRemaining(endsAtMs, nowMs) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { DEFAULT_PORT, stateURL, goURL, shouldBlock, rulesFor, applyRules, offlineState, formatRemaining, escapeRegex };
+  module.exports = { DEFAULT_PORT, stateURL, goURL, shouldBlock, rulesFor, applyRules, offlineState, stateAfterHelperLoss, formatRemaining, escapeRegex };
 }
