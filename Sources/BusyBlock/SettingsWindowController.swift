@@ -103,16 +103,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         topRow.alignment = .centerY
         topRow.spacing = 14
         root.addArrangedSubview(topRow)
-
-        root.addArrangedSubview(header("BUSY Bar"))
-        for check in [discoverCheck, restCheck, screenCheck, menuIconCheck, dockIconCheck, timerCheck] {
-            check.target = self
-            check.action = #selector(toggled)
-            root.addArrangedSubview(check)
-        }
-        loginCheck.target = self
-        loginCheck.action = #selector(toggleLogin)
-        root.addArrangedSubview(loginCheck)
         // Host and token only matter when discovery failed or the bar wants a
         // token; they unfold on their own in those cases.
         advancedToggle.bezelStyle = .inline
@@ -133,6 +123,16 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         tokenField.delegate = self
         advancedBox.addArrangedSubview(row("API token", tokenField))
         root.addArrangedSubview(advancedBox)
+
+        root.addArrangedSubview(header("BUSY Bar"))
+        for check in [discoverCheck, restCheck, screenCheck, menuIconCheck, dockIconCheck, timerCheck] {
+            check.target = self
+            check.action = #selector(toggled)
+            root.addArrangedSubview(check)
+        }
+        loginCheck.target = self
+        loginCheck.action = #selector(toggleLogin)
+        root.addArrangedSubview(loginCheck)
 
         root.addArrangedSubview(header("Apps to hide while the bar is busy"))
         appChips.spacing = 8
@@ -348,7 +348,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         case .mdns: via = " · found via mDNS"
         case .bonjour: via = " · found via Bonjour"
         }
-        let searching = !s.barConnected && (controller.discovering || (store.config.autoDiscover && !controller.searchFailed))
+        let searching = !s.barConnected && !controller.searchFailed && (controller.discovering || store.config.autoDiscover)
         if searching { spinner.startAnimation(nil) } else { spinner.stopAnimation(nil) }
         statusDot.isHidden = searching
         if controller.needsToken {
@@ -362,7 +362,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             statusDot.color = .systemGray
             statusTitle.stringValue = "BUSY Bar not found"
             statusDetail.stringValue = store.config.autoDiscover
-                ? "Not on USB, busybar.local or Bonjour. Plug it in or enter its address below."
+                ? "Not on USB, busybar.local or Bonjour; still checking every 20 s. Plug it in, or enter its address below."
                 : "\(host)" + (controller.lastError.map { " · \($0.prefix(60))" } ?? "")
         } else if s.isBlocking {
             statusDot.color = .systemRed
