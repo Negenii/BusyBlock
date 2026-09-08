@@ -118,6 +118,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         advancedToggle.target = self
         advancedToggle.action = #selector(toggleAdvanced)
         advancedToggle.font = .systemFont(ofSize: 12)
+        advancedToggle.alignment = .left
         advancedToggle.contentTintColor = .secondaryLabelColor
         root.addArrangedSubview(advancedToggle)
         advancedBox.orientation = .vertical
