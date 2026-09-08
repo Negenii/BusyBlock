@@ -15,6 +15,21 @@ let fetchSeq = 0;          // sync() calls overlap (interval, alarm, content scr
 let inflight = null;       // the one request in flight (declared before schedule() runs below)
 let appliedKey = null;     // last [blocking, domains, port] written to the browser's rules
 const IS_SAFARI = api.runtime.getURL("").startsWith("safari-web-extension://");
+// Safari refuses to load the body of an extension redirect that goes from
+// https to http, but the tab's URL still becomes our helper's /go?u=<site>.
+// So the marker URL is enough: whenever a tab lands there, move it on to the
+// block page ourselves. (A preloaded top hit is not a tab until the person
+// commits to it, so typing "li…" no longer drags them anywhere.)
+const GO_RE = /^http:\/\/127\.0\.0\.1:\d+\/go\?/;
+function hopFromGo(tabId, url) {
+  if (!url || !GO_RE.test(url)) return false;
+  let u = "";
+  try { u = new URL(url).searchParams.get("u") || ""; } catch (_) {}
+  api.tabs.update(tabId, { url: api.runtime.getURL("blocked.html") + "?u=" + encodeURIComponent(u) }).catch(() => {});
+  return true;
+}
+api.tabs.onUpdated.addListener((tabId, info, tab) => { hopFromGo(tabId, info.url || (tab && tab.url)); });
+
 api.runtime.onInstalled.addListener(schedule);
 api.runtime.onStartup.addListener(schedule);
 api.alarms.onAlarm.addListener((a) => { if (a.name === SYNC_ALARM) sync(); });
@@ -114,11 +129,12 @@ function updateRules(state) {
 
 // Rules only fire on navigation; tabs already sitting on a blocked site get moved.
 function enforceOpenTabs(state) {
-  if (!state.isBlocking) return;
   const page = api.runtime.getURL("blocked.html");
   api.tabs.query({ url: ["http://*/*", "https://*/*"] }).then((tabs) => {
     for (const tab of tabs) {
-      if (tab.id === undefined || !tab.url || !shouldBlock(tab.url, state)) continue;
+      if (tab.id === undefined || !tab.url) continue;
+      if (hopFromGo(tab.id, tab.url)) continue;   // stranded on the helper's marker page
+      if (!state.isBlocking || !shouldBlock(tab.url, state)) continue;
       api.tabs.update(tab.id, { url: page + "?u=" + encodeURIComponent(tab.url) }).catch(() => {});
     }
   }).catch(() => {});
