@@ -673,7 +673,7 @@ final class DropContainerView: NSView {
         overlay.isHidden = false
         zone?.active = true
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.22
+            ctx.duration = 0.11
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
             overlay.animator().frame = bounds.insetBy(dx: 14, dy: 14)
         }
@@ -682,7 +682,7 @@ final class DropContainerView: NSView {
     private func shrink() {
         zone?.active = false
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.18
+            ctx.duration = 0.09
             ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
             overlay.animator().frame = zoneFrame
         }, completionHandler: { [weak self] in self?.overlay.isHidden = true })
