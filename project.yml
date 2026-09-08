@@ -25,6 +25,8 @@ targets:
       - path: Sources/BusyBlock
       - path: Resources/AppIcon.icns
         buildPhase: resources
+      - path: Resources/busybar-device.png
+        buildPhase: resources
     dependencies:
       - package: BusyBlockCore
         product: BusyBlockCore

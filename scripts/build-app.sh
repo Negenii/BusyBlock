@@ -9,6 +9,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/busyblock-helper "$APP/Contents/MacOS/BusyBlock"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp Resources/busybar-device.png "$APP/Contents/Resources/busybar-device.png"
 cp -R extension "$APP/Contents/Resources/extension"
 rm -rf "$APP/Contents/Resources/extension/node_modules"
 codesign --force --sign - "$APP" >/dev/null

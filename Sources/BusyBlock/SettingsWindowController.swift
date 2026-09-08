@@ -19,6 +19,10 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let statusDetail = NSTextField(labelWithString: "")
 
     // Bar
+    private let devicePanel = DevicePanelView()
+    private let advancedToggle = NSButton()
+    private let advancedBox = NSStackView()
+    private var advancedManual: Bool?   // nil = follow the connection state
     private let hostField = NSTextField()
     private let tokenField = NSTextField()
     private let discoverCheck = NSButton(checkboxWithTitle: "Find the bar automatically when this host is silent", target: nil, action: nil)
@@ -57,6 +61,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         controller.$activeHost.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
         controller.$needsToken.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
         controller.$lastError.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
+        LiveFrames.shared.$frame.receive(on: DispatchQueue.main).sink { [weak self] f in self?.devicePanel.frame72 = f }.store(in: &cancellables)
         store.$config.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.load() }.store(in: &cancellables)
         saveDebounce.debounce(for: .milliseconds(400), scheduler: DispatchQueue.main)
             .sink { [weak self] in self?.commit() }.store(in: &cancellables)
@@ -83,19 +88,35 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
 
         root.addArrangedSubview(statusCard())
+        devicePanel.translatesAutoresizingMaskIntoConstraints = false
+        root.addArrangedSubview(devicePanel)
+        devicePanel.heightAnchor.constraint(equalTo: devicePanel.widthAnchor, multiplier: 248.0 / 768.0).isActive = true
 
         root.addArrangedSubview(header("BUSY Bar"))
-        hostField.placeholderString = "10.0.4.20 over USB, an IP over Wi-Fi, or 127.0.0.1:8321 for busybar-manager"
-        hostField.delegate = self
-        root.addArrangedSubview(row("Host", hostField))
-        tokenField.placeholderString = "only if access protection is on in the bar's settings"
-        tokenField.delegate = self
-        root.addArrangedSubview(row("API token", tokenField))
         for check in [discoverCheck, restCheck, screenCheck, timerCheck] {
             check.target = self
             check.action = #selector(toggled)
             root.addArrangedSubview(indent(check))
         }
+        // Host and token only matter when discovery failed or the bar wants a
+        // token; they unfold on their own in those cases.
+        advancedToggle.bezelStyle = .inline
+        advancedToggle.isBordered = false
+        advancedToggle.target = self
+        advancedToggle.action = #selector(toggleAdvanced)
+        advancedToggle.font = .systemFont(ofSize: 12)
+        advancedToggle.contentTintColor = .secondaryLabelColor
+        root.addArrangedSubview(indent(advancedToggle))
+        advancedBox.orientation = .vertical
+        advancedBox.alignment = .leading
+        advancedBox.spacing = 8
+        hostField.placeholderString = "10.0.4.20 over USB, an IP over Wi-Fi, or 127.0.0.1:8321 for busybar-manager"
+        hostField.delegate = self
+        advancedBox.addArrangedSubview(row("Host", hostField))
+        tokenField.placeholderString = "only if access protection is on in the bar's settings"
+        tokenField.delegate = self
+        advancedBox.addArrangedSubview(row("API token", tokenField))
+        root.addArrangedSubview(advancedBox)
 
         root.addArrangedSubview(header("Apps to hide while the bar is busy"))
         appChips.spacing = 8
@@ -236,8 +257,23 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         store.save(c)
     }
 
+    private var advancedShown: Bool { !advancedBox.isHidden }
+
+    private func setAdvanced(_ shown: Bool) {
+        advancedBox.isHidden = !shown
+        advancedToggle.title = (shown ? "▾ " : "▸ ") + "Bar connection (host, API token)"
+    }
+
+    @objc private func toggleAdvanced() {
+        advancedManual = !advancedShown
+        setAdvanced(!advancedShown)
+    }
+
     private func refreshStatus() {
         let s = controller.state
+        let wanted = advancedManual ?? (!s.barConnected || controller.needsToken)
+        if wanted != advancedShown { setAdvanced(wanted) }
+        devicePanel.dimmed = !s.barConnected
         let host = controller.activeHost
         let via: String
         switch controller.foundVia {

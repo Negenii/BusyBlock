@@ -50,11 +50,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.log("bar stream \(connected ? "up" : "down")\(error.map { ": \($0)" } ?? "")")
             }
             self.controller.streamConnected = connected
+            LiveFrames.shared.connected = connected
         }
         stream.onMessage = { [weak self] msg, received in
             guard let self else { return }
             if let ms = msg.timestampMs { self.controller.calibrate(barMs: ms, receivedAt: received) }
             if let snap = msg.timer { self.controller.ingest(snapshot: snap, receivedAt: received) }
+            if let frame = msg.frames.last(where: { $0.screen == .front }) { LiveFrames.shared.frame = frame }
             if self.store.config.showScreenInBrowser,
                let frame = msg.frames.last(where: { $0.screen == .front }), frame.rgb != self.lastFrameRGB {
                 self.lastFrameRGB = frame.rgb
