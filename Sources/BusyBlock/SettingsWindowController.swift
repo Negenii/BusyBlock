@@ -129,7 +129,17 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         advancedToggle.font = .systemFont(ofSize: 12)
         advancedToggle.alignment = .left
         advancedToggle.contentTintColor = .secondaryLabelColor
-        root.addArrangedSubview(advancedToggle)
+        // Same row: how we're connected (USB or Wi-Fi) and to what.
+        connIcon.contentTintColor = .secondaryLabelColor
+        connIcon.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+        connLabel.font = .systemFont(ofSize: 12)
+        connLabel.textColor = .secondaryLabelColor
+        let connRow = NSStackView(views: [advancedToggle, connIcon, connLabel])
+        connRow.orientation = .horizontal
+        connRow.alignment = .centerY
+        connRow.spacing = 6
+        advancedToggle.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        root.addArrangedSubview(connRow)
         advancedBox.orientation = .vertical
         advancedBox.alignment = .leading
         advancedBox.spacing = 8
