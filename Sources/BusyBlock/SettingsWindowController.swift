@@ -7,7 +7,7 @@ import BusyBlockCore
 /// every status line follows the controller live. AppKit only: SwiftUI macros
 /// don't build with Command Line Tools.
 @MainActor
-final class SettingsWindowController: NSWindowController, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
+final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let store: ConfigStore
     private let controller: BlockController
     private var cancellables = Set<AnyCancellable>()
@@ -26,7 +26,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser", target: nil, action: nil)
 
     // Apps
-    private let appsTable = NSTableView()
+    private let appChips = FlowView()
     private let dropZone = DropZoneView()
     private let appPills = FlowView()
     private var apps: [String] = []
@@ -97,9 +97,8 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         }
 
         root.addArrangedSubview(header("Apps to hide while the bar is busy"))
-        let appsScroll = table(appsTable, id: "app", rowHeight: 40)
-        appsTable.registerForDraggedTypes([.fileURL])
-        root.addArrangedSubview(appsScroll)
+        appChips.spacing = 8
+        root.addArrangedSubview(appChips)
         dropZone.onDrop = { [weak self] urls in self?.addApps(urls) }
         dropZone.onClick = { [weak self] in self?.pickApp() }
         root.addArrangedSubview(dropZone)
@@ -199,31 +198,6 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         return s
     }
 
-    private func table(_ table: NSTableView, id: String, rowHeight: CGFloat) -> NSView {
-        // Only the apps list is a table now; websites are chips.
-        let col = NSTableColumn(identifier: .init(id))
-        col.resizingMask = .autoresizingMask
-        table.addTableColumn(col)
-        table.headerView = nil
-        table.rowHeight = rowHeight
-        table.style = .inset
-        table.dataSource = self
-        table.delegate = self
-        table.allowsMultipleSelection = true
-        table.columnAutoresizingStyle = .firstColumnOnlyAutoresizingStyle
-        let scroll = NSScrollView()
-        scroll.documentView = table
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .noBorder
-        scroll.wantsLayer = true
-        scroll.layer?.cornerRadius = 8
-        scroll.layer?.borderWidth = 1
-        scroll.layer?.borderColor = NSColor.separatorColor.cgColor
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        scroll.heightAnchor.constraint(equalToConstant: 150).isActive = true
-        return scroll
-    }
-
     // MARK: - Data
 
     private func load() {
@@ -235,7 +209,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         discoverCheck.state = c.autoDiscover ? .on : .off
         restCheck.state = c.blockDuringRest ? .on : .off
         screenCheck.state = c.showScreenInBrowser ? .on : .off
-        if apps != c.blockedApps { apps = c.blockedApps; appsTable.reloadData() }
+        if apps != c.blockedApps { apps = c.blockedApps; rebuildAppChips() }
         rebuildAppPills()
         if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
         faviconCheck.state = c.faviconFallback ? .on : .off
@@ -320,7 +294,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
             if let id = Bundle(url: url)?.bundleIdentifier, !apps.contains(id) { apps.append(id); added = true }
         }
         guard added else { return }
-        appsTable.reloadData()
+        rebuildAppChips()
         rebuildAppPills()
         saveDebounce.send()
     }
@@ -340,6 +314,30 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
             chips.addSubview(chip)
         }
         chips.needsLayout = true
+    }
+
+    private func rebuildAppChips() {
+        appChips.subviews.forEach { $0.removeFromSuperview() }
+        let ws = NSWorkspace.shared
+        for id in apps {
+            let url = ws.urlForApplication(withBundleIdentifier: id)
+            let name = url.map { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") } ?? id
+            let chip = ChipView(title: name, large: true)
+            chip.toolTip = url == nil ? "\(id) (not installed)" : id
+            if let url {
+                chip.icon.image = ws.icon(forFile: url.path)
+                chip.icon.contentTintColor = nil
+            } else {
+                chip.icon.image = NSImage(systemSymbolName: "questionmark.app.dashed", accessibilityDescription: nil)
+            }
+            chip.onRemove = { [weak self] in
+                guard let self, let i = self.apps.firstIndex(of: id) else { return }
+                self.apps.remove(at: i)
+                self.rebuildAppChips(); self.rebuildAppPills(); self.saveDebounce.send()
+            }
+            appChips.addSubview(chip)
+        }
+        appChips.needsLayout = true
     }
 
     private func rebuildAppPills() {
@@ -366,7 +364,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     @objc private func appPillTapped(_ sender: NSButton) {
         guard let id = sender.identifier?.rawValue, !apps.contains(id) else { return }
         apps.append(id)
-        appsTable.reloadData()
+        rebuildAppChips()
         rebuildAppPills()
         saveDebounce.send()
     }
@@ -408,127 +406,9 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         saveDebounce.send()
     }
 
-    private func removeSelected(in table: NSTableView) {
-        let rows = table.selectedRowIndexes
-        guard !rows.isEmpty, table === appsTable else { return }
-        apps = apps.enumerated().filter { !rows.contains($0.offset) }.map(\.element)
-        table.reloadData()
-        rebuildAppPills()
-        saveDebounce.send()
-    }
-
-    // MARK: - Tables
-
-    func numberOfRows(in tableView: NSTableView) -> Int { apps.count }
-
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        if tableView === appsTable, row < apps.count {
-            let id = apps[row]
-            let cell = ItemCell.dequeue(tableView, id: "appCell")
-            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
-                cell.icon.image = NSWorkspace.shared.icon(forFile: url.path)
-                cell.title.stringValue = FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
-                cell.subtitle.stringValue = id
-            } else {
-                cell.icon.image = NSImage(systemSymbolName: "questionmark.app.dashed", accessibilityDescription: nil)
-                cell.title.stringValue = id
-                cell.subtitle.stringValue = "not installed"
-            }
-            cell.onRemove = { [weak self] in
-                guard let self, let i = self.apps.firstIndex(of: id) else { return }
-                self.apps.remove(at: i); self.appsTable.reloadData(); self.rebuildAppPills(); self.saveDebounce.send()
-            }
-            return cell
-        }
-        return nil
-    }
-
-    func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int,
-                   proposedDropOperation op: NSTableView.DropOperation) -> NSDragOperation {
-        guard tableView === appsTable, !DropZoneView.appURLs(info).isEmpty else { return [] }
-        tableView.setDropRow(-1, dropOperation: .on)
-        return .copy
-    }
-
-    func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int,
-                   dropOperation: NSTableView.DropOperation) -> Bool {
-        let urls = DropZoneView.appURLs(info)
-        addApps(urls)
-        return !urls.isEmpty
-    }
-
-    override func keyDown(with event: NSEvent) {
-        if event.keyCode == 51 || event.keyCode == 117, let t = window?.firstResponder as? NSTableView {
-            removeSelected(in: t)
-        } else {
-            super.keyDown(with: event)
-        }
-    }
 }
 
 // MARK: - Views
-
-/// Icon + title + subtitle + hover "remove" button.
-final class ItemCell: NSTableCellView {
-    let icon = NSImageView()
-    let title = NSTextField(labelWithString: "")
-    let subtitle = NSTextField(labelWithString: "")
-    private let remove = NSButton()
-    var onRemove: (() -> Void)?
-
-    static func dequeue(_ table: NSTableView, id: String, compact: Bool = false) -> ItemCell {
-        if let c = table.makeView(withIdentifier: .init(id), owner: nil) as? ItemCell { return c }
-        let c = ItemCell(compact: compact)
-        c.identifier = .init(id)
-        return c
-    }
-
-    init(compact: Bool) {
-        super.init(frame: .zero)
-        icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        let size: CGFloat = compact ? 16 : 28
-        icon.widthAnchor.constraint(equalToConstant: size).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: size).isActive = true
-        icon.contentTintColor = .secondaryLabelColor
-        title.font = .systemFont(ofSize: 13, weight: compact ? .regular : .medium)
-        title.lineBreakMode = .byTruncatingTail
-        subtitle.font = .systemFont(ofSize: 11)
-        subtitle.textColor = .secondaryLabelColor
-        subtitle.lineBreakMode = .byTruncatingMiddle
-        subtitle.isHidden = compact
-        let text = NSStackView(views: [title, subtitle])
-        text.orientation = .vertical
-        text.alignment = .leading
-        text.spacing = 1
-        remove.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Remove")
-        remove.isBordered = false
-        remove.contentTintColor = .tertiaryLabelColor
-        remove.target = self
-        remove.action = #selector(removeTapped)
-        remove.toolTip = "Remove"
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        spacer.setContentCompressionResistancePriority(.init(1), for: .horizontal)
-        let h = NSStackView(views: [icon, text, spacer, remove])
-        h.orientation = .horizontal
-        h.alignment = .centerY
-        h.spacing = 10
-        h.distribution = .fill
-        h.edgeInsets = NSEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
-        h.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(h)
-        NSLayoutConstraint.activate([
-            h.leadingAnchor.constraint(equalTo: leadingAnchor), h.trailingAnchor.constraint(equalTo: trailingAnchor),
-            h.topAnchor.constraint(equalTo: topAnchor), h.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
-        text.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    @objc private func removeTapped() { onRemove?() }
-}
 
 /// Dashed "drop apps here" target; also clickable to open the file picker.
 final class DropZoneView: NSView {
@@ -599,10 +479,10 @@ final class ChipView: NSView {
     let icon = NSImageView()
     var onRemove: (() -> Void)?
 
-    init(title: String) {
+    init(title: String, large: Bool = false) {
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 15
+        layer?.cornerRadius = large ? 18 : 15
         layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.12).cgColor
         layer?.borderWidth = 1
         layer?.borderColor = NSColor.separatorColor.cgColor
@@ -610,10 +490,11 @@ final class ChipView: NSView {
         icon.contentTintColor = .secondaryLabelColor
         icon.imageScaling = .scaleProportionallyUpOrDown
         icon.translatesAutoresizingMaskIntoConstraints = false
-        icon.widthAnchor.constraint(equalToConstant: 16).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        let iconSize: CGFloat = large ? 22 : 16
+        icon.widthAnchor.constraint(equalToConstant: iconSize).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: iconSize).isActive = true
         let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 13)
+        label.font = .systemFont(ofSize: large ? 14 : 13)
         label.lineBreakMode = .byTruncatingMiddle
         label.maximumNumberOfLines = 1
         let remove = NSButton()
@@ -627,7 +508,7 @@ final class ChipView: NSView {
         h.orientation = .horizontal
         h.alignment = .centerY
         h.spacing = 7
-        h.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 6)
+        h.edgeInsets = large ? NSEdgeInsets(top: 7, left: 10, bottom: 7, right: 8) : NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 6)
         h.translatesAutoresizingMaskIntoConstraints = false
         addSubview(h)
         NSLayoutConstraint.activate([
