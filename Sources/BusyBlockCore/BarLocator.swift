@@ -103,7 +103,9 @@ public enum BarLocator {
     /// Full search. Blocking; call off the main thread.
     public static func locate(configured: String?, token: String?, log: (String) -> Void = { _ in }) -> Found? {
         for (host, via) in candidates(configured: configured) {
-            let p = probe(host: host, token: token)
+            // USB answers within milliseconds or not at all; don't make people wait 3 s on it.
+            let timeout: TimeInterval = (host == usbHost || via == .usb) ? 0.8 : 2
+            let p = probe(host: host, token: token, timeout: timeout)
             log("probe \(host) (\(via.rawValue)): \(p)")
             if p != .unreachable { return Found(host: host, via: via, needsToken: p == .needsToken) }
         }

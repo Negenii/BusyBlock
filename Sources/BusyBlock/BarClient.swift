@@ -7,6 +7,8 @@ final class BarClient {
     private(set) var host: String
     private var token: String?
     private let timeout: TimeInterval = 3
+    /// Shorter while nothing has answered yet, so discovery starts sooner.
+    var quick = true
 
     enum ClientError: Error { case badResponse }
 
@@ -43,10 +45,11 @@ final class BarClient {
         let host = self.host
         var headers: [String: String] = [:]
         if let token, !token.isEmpty { headers["X-API-Token"] = token }
-        let timeout = self.timeout
+        let timeout = quick ? 1 : self.timeout
         let data = try await Task.detached(priority: .utility) {
             try RawHTTPClient.get(host: host, path: "/api/busy/snapshot", headers: headers, timeout: timeout)
         }.value
+        quick = false
         return try BusySnapshot.decode(data)
     }
 }

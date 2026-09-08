@@ -16,6 +16,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     // Status card
     private let statusDot = DotView()
+    private let spinner = NSProgressIndicator()
+    private var root: NSStackView!
     private let statusTitle = NSTextField(labelWithString: "")
     private let statusDetail = NSTextField(labelWithString: "")
 
@@ -50,7 +52,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 860),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 600),
                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         w.title = "BusyBlock"
         w.isReleasedWhenClosed = false
@@ -63,6 +65,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         controller.$activeHost.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
         controller.$needsToken.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
         controller.$lastError.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
+        controller.$discovering.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
+        controller.$searchFailed.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshStatus() }.store(in: &cancellables)
         LiveFrames.shared.$frame.receive(on: DispatchQueue.main).sink { [weak self] f in self?.devicePanel.frame72 = f }.store(in: &cancellables)
         store.$config.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.load() }.store(in: &cancellables)
         saveDebounce.debounce(for: .milliseconds(400), scheduler: DispatchQueue.main)
@@ -78,12 +82,14 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     override func showWindow(_ sender: Any?) {
         load()
         super.showWindow(sender)
+        fitWindow()
     }
 
     // MARK: - Layout
 
     private func buildContent() -> NSView {
         let root = NSStackView()
+        self.root = root
         root.orientation = .vertical
         root.alignment = .leading
         root.spacing = 14
@@ -160,6 +166,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         for v in root.arrangedSubviews {
             root.widthAnchor.constraint(equalTo: v.widthAnchor, constant: 48).isActive = true
         }
+        root.widthAnchor.constraint(equalToConstant: 640).isActive = true
         return root
     }
 
@@ -172,6 +179,12 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         statusDetail.font = .systemFont(ofSize: 12)
         statusDetail.textColor = .secondaryLabelColor
         statusDetail.lineBreakMode = .byTruncatingTail
+        statusDetail.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+        statusTitle.setContentCompressionResistancePriority(.init(2), for: .horizontal)
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.isDisplayedWhenStopped = false
+        spinner.translatesAutoresizingMaskIntoConstraints = false
         let text = NSStackView(views: [statusTitle, statusDetail])
         text.orientation = .vertical
         text.alignment = .leading
@@ -182,7 +195,10 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         devicePanel.heightAnchor.constraint(equalToConstant: 240 * 248 / 768).isActive = true
         text.setContentHuggingPriority(.defaultLow, for: .horizontal)
         text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let h = NSStackView(views: [statusDot, text, devicePanel])
+        let lead = NSStackView(views: [statusDot, spinner])
+        lead.orientation = .horizontal
+        lead.spacing = 6
+        let h = NSStackView(views: [lead, text, devicePanel])
         h.orientation = .horizontal
         h.alignment = .centerY
         h.spacing = 12
@@ -265,6 +281,19 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         store.save(c)
     }
 
+    /// The window takes the height of its content; a fixed height would make
+    /// the stack pad the slack into some row.
+    private func fitWindow() {
+        guard let w = window, let root else { return }
+        root.layoutSubtreeIfNeeded()
+        let h = root.fittingSize.height
+        var f = w.frame
+        let delta = h - w.contentRect(forFrameRect: f).height
+        f.origin.y -= delta
+        f.size.height += delta
+        w.setFrame(f, display: true, animate: false)
+    }
+
     private var advancedShown: Bool { !advancedBox.isHidden }
 
     private func setAdvanced(_ shown: Bool) {
@@ -279,8 +308,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     private func refreshStatus() {
         let s = controller.state
-        let wanted = advancedManual ?? (!s.barConnected || controller.needsToken)
-        if wanted != advancedShown { setAdvanced(wanted) }
+        let wanted = advancedManual ?? ((!s.barConnected && controller.searchFailed && !controller.discovering) || controller.needsToken)
+        if wanted != advancedShown { setAdvanced(wanted); fitWindow() }
         devicePanel.dimmed = !s.barConnected
         let host = controller.activeHost
         let via: String
@@ -290,15 +319,22 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         case .mdns: via = " · found via mDNS"
         case .bonjour: via = " · found via Bonjour"
         }
+        let searching = !s.barConnected && (controller.discovering || (store.config.autoDiscover && !controller.searchFailed))
+        if searching { spinner.startAnimation(nil) } else { spinner.stopAnimation(nil) }
+        statusDot.isHidden = searching
         if controller.needsToken {
             statusDot.color = .systemOrange
             statusTitle.stringValue = "The bar wants an API token"
             statusDetail.stringValue = "\(host)\(via) · create one in the bar's settings and paste it below"
+        } else if searching {
+            statusTitle.stringValue = "Looking for the BUSY Bar…"
+            statusDetail.stringValue = "USB, busybar.local, Bonjour"
         } else if !s.barConnected {
             statusDot.color = .systemGray
-            statusTitle.stringValue = store.config.autoDiscover ? "Looking for the bar…" : "Bar unreachable"
-            let err = controller.lastError.map { " · \($0.prefix(70))" } ?? ""
-            statusDetail.stringValue = "\(host)\(err)"
+            statusTitle.stringValue = "BUSY Bar not found"
+            statusDetail.stringValue = store.config.autoDiscover
+                ? "Not on USB, busybar.local or Bonjour. Plug it in or enter its address below."
+                : "\(host)" + (controller.lastError.map { " · \($0.prefix(60))" } ?? "")
         } else if s.isBlocking {
             statusDot.color = .systemRed
             let left = s.endsAt.map { Self.remaining($0) } ?? ""
@@ -371,6 +407,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             chips.addSubview(chip)
         }
         chips.needsLayout = true
+        DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
 
     private func rebuildAppChips() {
@@ -395,6 +432,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             appChips.addSubview(chip)
         }
         appChips.needsLayout = true
+        DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
 
     private func rebuildAppPills() {
@@ -416,6 +454,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             appPills.addSubview(b)
         }
         appPills.needsLayout = true
+        DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
 
     @objc private func appPillTapped(_ sender: NSButton) {
@@ -439,6 +478,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             pills.addSubview(b)
         }
         pills.needsLayout = true
+        DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
 
     @objc private func pillTapped(_ sender: NSButton) {

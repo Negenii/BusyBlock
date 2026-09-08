@@ -21,7 +21,9 @@ final class BlockController: ObservableObject {
     @Published private(set) var needsToken = false
     /// Called when discovery switches hosts, so the stream can follow.
     var onHostChange: ((String) -> Void)?
-    private var discovering = false
+    @Published private(set) var discovering = false
+    /// True after a discovery round found nothing (until the next round starts).
+    @Published private(set) var searchFailed = false
     private var lastDiscovery = Date.distantPast
     private var everConnected = false
     private var lastPreferredCheck = Date.distantPast
@@ -151,6 +153,7 @@ final class BlockController: ObservableObject {
             BarLocator.locate(configured: configured, token: token)
         }.value
         discovering = false
+        searchFailed = (found == nil)
         guard let found else { return }
         needsToken = found.needsToken
         if found.host != activeHost {
