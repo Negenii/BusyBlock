@@ -173,6 +173,17 @@ final class LocalServer {
             return
         }
 
+        if method == "GET" && path == "/blockpage" {
+            // The block page URL of the browser asking (learned from its worker).
+            let kind = Self.browserKind(Self.header(requestHead, "user-agent") ?? "")
+            let url = blockedPageURL[kind]
+            let body = Data((url.map { #"{"url":"\($0)"}"# } ?? #"{"url":null}"#).utf8)
+            var head = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n"
+            head += "Content-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+            conn.send(content: Data(head.utf8) + body, completion: .contentProcessed { _ in conn.cancel() })
+            return
+        }
+
         if method == "GET" && path == "/go" {
             // Safari's redirect lands here. If this browser's worker told us its
             // block page URL, hop there right away; otherwise the extension's

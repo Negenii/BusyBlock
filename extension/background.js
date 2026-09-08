@@ -78,6 +78,7 @@ function report(msg) {
 }
 report("worker started");
 let lastReport = "";
+let lastReportAt = 0;
 globalThis.onRulesError = (e) => report("rules error: " + (e && e.message || e));
 
 async function applyState(state) {
@@ -88,7 +89,8 @@ async function applyState(state) {
     await updateRules(state);
     const n = (await api.declarativeNetRequest.getDynamicRules()).length;
     const line = "rules=" + n + " blocking=" + state.isBlocking + " domains=" + (state.domains || []).length;
-    if (line !== lastReport) { lastReport = line; report(line); }
+    // Also a heartbeat every 15 s: a restarted helper must relearn our page URL.
+    if (line !== lastReport || Date.now() - lastReportAt > 15000) { lastReport = line; lastReportAt = Date.now(); report(line); }
   } catch (e) {
     report("rules error: " + (e && e.message || e));
   }
