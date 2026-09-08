@@ -115,6 +115,7 @@ do {
     check(partial.barHost == "192.168.1.5" && partial.localPort == 48321 && partial.blockedDomains == ["x.com"], "partial config gets defaults")
     check(partial.showScreenInBrowser == true, "showScreenInBrowser defaults on")
     check(partial.autoDiscover == true, "autoDiscover defaults on")
+    check(partial.showTimerInMenuBar == false, "menu-bar countdown defaults off")
     let noScreen = try Config.decode(Data(#"{"showScreenInBrowser":false}"#.utf8))
     let noScreenState = BlockDecision.evaluate(snapshot: BusySnapshot(kind: .simple, timeLeftMs: 1000), config: noScreen, now: now)
     check(!noScreenState.showScreen, "showScreen follows config")

@@ -17,12 +17,16 @@ public struct Config: Codable, Equatable {
     /// Ask DuckDuckGo's icon service for favicons a site doesn't serve itself.
     /// Off means only the site's own /favicon.ico is tried (nothing leaves the LAN otherwise).
     public var faviconFallback: Bool
+    /// Countdown next to the menu-bar icon. Off by default: most people also
+    /// run the BUSY app, which already shows the timer.
+    public var showTimerInMenuBar: Bool
 
     public init(barHost: String = "10.0.4.20", barToken: String? = nil,
                 pollIntervalSec: Double = 2, localPort: UInt16 = 48321,
                 blockDuringRest: Bool = false, blockedApps: [String] = [],
                 blockedDomains: [String] = [], showScreenInBrowser: Bool = true,
-                autoDiscover: Bool = true, faviconFallback: Bool = true) {
+                autoDiscover: Bool = true, faviconFallback: Bool = true,
+                showTimerInMenuBar: Bool = false) {
         self.barHost = barHost
         self.barToken = barToken
         self.pollIntervalSec = pollIntervalSec
@@ -33,6 +37,7 @@ public struct Config: Codable, Equatable {
         self.showScreenInBrowser = showScreenInBrowser
         self.autoDiscover = autoDiscover
         self.faviconFallback = faviconFallback
+        self.showTimerInMenuBar = showTimerInMenuBar
     }
 
     public static let defaults = Config()
@@ -65,6 +70,7 @@ public struct Config: Codable, Equatable {
         if let v = d.showScreenInBrowser { c.showScreenInBrowser = v }
         if let v = d.autoDiscover { c.autoDiscover = v }
         if let v = d.faviconFallback { c.faviconFallback = v }
+        if let v = d.showTimerInMenuBar { c.showTimerInMenuBar = v }
         if let v = d.blockedDomains {
             c.blockedDomains = Array(Set(v.map(Domain.normalize).filter { !$0.isEmpty })).sorted()
         }
@@ -97,5 +103,6 @@ public struct Config: Codable, Equatable {
         var showScreenInBrowser: Bool?
         var autoDiscover: Bool?
         var faviconFallback: Bool?
+        var showTimerInMenuBar: Bool?
     }
 }

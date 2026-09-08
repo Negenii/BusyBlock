@@ -24,6 +24,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let discoverCheck = NSButton(checkboxWithTitle: "Find the bar automatically when this host is silent", target: nil, action: nil)
     private let restCheck = NSButton(checkboxWithTitle: "Keep blocking during rest phases", target: nil, action: nil)
     private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser", target: nil, action: nil)
+    private let timerCheck = NSButton(checkboxWithTitle: "Show the countdown in the menu bar (the BUSY app shows it too)", target: nil, action: nil)
 
     // Apps
     private let appChips = FlowView()
@@ -43,7 +44,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 880),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 910),
                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         w.title = "BusyBlock"
         w.isReleasedWhenClosed = false
@@ -90,7 +91,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         tokenField.placeholderString = "only if access protection is on in the bar's settings"
         tokenField.delegate = self
         root.addArrangedSubview(row("API token", tokenField))
-        for check in [discoverCheck, restCheck, screenCheck] {
+        for check in [discoverCheck, restCheck, screenCheck, timerCheck] {
             check.target = self
             check.action = #selector(toggled)
             root.addArrangedSubview(indent(check))
@@ -209,6 +210,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         discoverCheck.state = c.autoDiscover ? .on : .off
         restCheck.state = c.blockDuringRest ? .on : .off
         screenCheck.state = c.showScreenInBrowser ? .on : .off
+        timerCheck.state = c.showTimerInMenuBar ? .on : .off
         if apps != c.blockedApps { apps = c.blockedApps; rebuildAppChips() }
         rebuildAppPills()
         if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
@@ -227,6 +229,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         c.autoDiscover = discoverCheck.state == .on
         c.blockDuringRest = restCheck.state == .on
         c.showScreenInBrowser = screenCheck.state == .on
+        c.showTimerInMenuBar = timerCheck.state == .on
         c.faviconFallback = faviconCheck.state == .on
         c.blockedApps = apps
         c.blockedDomains = domains

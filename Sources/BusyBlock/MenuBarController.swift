@@ -67,12 +67,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func refresh() {
         let s = controller.state
-        let symbol = s.isBlocking ? "hand.raised.fill" : "hand.raised"
-        if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: "BusyBlock") {
-            img.isTemplate = true
-            item.button?.image = img
-        }
-        item.button?.title = s.isBlocking ? " " + remaining(s) : ""
+        item.button?.image = Self.statusIcon(filled: s.isBlocking)
+        item.button?.title = (s.isBlocking && store.config.showTimerInMenuBar) ? " " + remaining(s) : ""
 
         let via: String
         switch controller.foundVia {
@@ -97,6 +93,35 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             statusItem.title = s.phase == "rest" ? "Rest phase" : "Idle"
             detailItem.title = "Bar connected · \(controller.activeHost)\(via)"
         }
+    }
+
+    /// The app icon's shape as a template image: a rounded square with the bar
+    /// knocked out. Filled while blocking, outlined otherwise.
+    private static var iconCache: [Bool: NSImage] = [:]
+    static func statusIcon(filled: Bool) -> NSImage {
+        if let cached = iconCache[filled] { return cached }
+        let size = NSSize(width: 18, height: 18)
+        let img = NSImage(size: size, flipped: false) { rect in
+            let box = rect.insetBy(dx: 1, dy: 1)
+            let square = NSBezierPath(roundedRect: box, xRadius: 4.2, yRadius: 4.2)
+            let bar = NSBezierPath(roundedRect: NSRect(x: box.minX + box.width * 0.22, y: box.midY - box.height * 0.08,
+                                                       width: box.width * 0.56, height: box.height * 0.16), xRadius: 1, yRadius: 1)
+            NSColor.black.setFill()
+            NSColor.black.setStroke()
+            if filled {
+                square.append(bar)
+                square.windingRule = .evenOdd
+                square.fill()
+            } else {
+                square.lineWidth = 1.5
+                square.stroke()
+                bar.fill()
+            }
+            return true
+        }
+        img.isTemplate = true
+        iconCache[filled] = img
+        return img
     }
 
     private func remaining(_ s: BlockState) -> String {

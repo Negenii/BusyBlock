@@ -5,7 +5,9 @@
   "description": "Blocks distracting websites while your BUSY Bar timer is running.",
   "icons": {
     "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png",
+    "512": "icons/icon-512.png"
   },
   "background": {
     "service_worker": "background.js",

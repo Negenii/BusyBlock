@@ -23,6 +23,8 @@ targets:
     platform: macOS
     sources:
       - path: Sources/BusyBlock
+      - path: Resources/AppIcon.icns
+        buildPhase: resources
     dependencies:
       - package: BusyBlockCore
         product: BusyBlockCore
