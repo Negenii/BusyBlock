@@ -348,47 +348,29 @@ final class OnboardingWindowController: NSWindowController {
     // MARK: Page 3 — hiding
 
     private func pageHiding() -> NSView {
-        // Real icons from this Mac where possible, so the picture means something.
+        // Real icons from this Mac: suggestions that are installed, the person's
+        // own list, then whatever else lives in /Applications, up to ten.
         let ws = NSWorkspace.shared
-        var icons: [NSImage] = []
-        for app in Suggestions.apps where icons.count < 4 {
-            if let url = ws.urlForApplication(withBundleIdentifier: app.id) { icons.append(ws.icon(forFile: url.path)) }
+        var ids: [String] = []
+        func add(_ id: String) { if !ids.contains(id), ws.urlForApplication(withBundleIdentifier: id) != nil { ids.append(id) } }
+        Suggestions.apps.forEach { add($0.id) }
+        store.config.blockedApps.forEach { add($0) }
+        if ids.count < 10, let apps = try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: "/Applications"), includingPropertiesForKeys: nil) {
+            for url in apps.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) where url.pathExtension == "app" && ids.count < 10 {
+                if let id = Bundle(url: url)?.bundleIdentifier, id != Bundle.main.bundleIdentifier { add(id) }
+            }
         }
-        for id in store.config.blockedApps where icons.count < 4 {
-            if let url = ws.urlForApplication(withBundleIdentifier: id), let img = Optional(ws.icon(forFile: url.path)), !icons.contains(img) { icons.append(img) }
-        }
+        var icons = ids.compactMap { id in ws.urlForApplication(withBundleIdentifier: id).map { ws.icon(forFile: $0.path) } }
         while icons.count < 4 { icons.append(NSImage(systemSymbolName: "app.dashed", accessibilityDescription: nil)!) }
 
-        let row = NSStackView()
-        row.orientation = .horizontal
-        row.spacing = 14
-        row.alignment = .centerY
-        for img in icons {
-            let cell = NSView()
-            cell.translatesAutoresizingMaskIntoConstraints = false
-            cell.widthAnchor.constraint(equalToConstant: 64).isActive = true
-            cell.heightAnchor.constraint(equalToConstant: 64).isActive = true
-            let iv = NSImageView(image: img)
-            iv.imageScaling = .scaleProportionallyUpOrDown
-            iv.alphaValue = 0.3
-            iv.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(iv)
-            let badge = HiddenBadgeView()
-            badge.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(badge)
-            NSLayoutConstraint.activate([
-                iv.leadingAnchor.constraint(equalTo: cell.leadingAnchor), iv.topAnchor.constraint(equalTo: cell.topAnchor),
-                iv.widthAnchor.constraint(equalToConstant: 56), iv.heightAnchor.constraint(equalToConstant: 56),
-                badge.widthAnchor.constraint(equalToConstant: 22), badge.heightAnchor.constraint(equalToConstant: 22),
-                badge.trailingAnchor.constraint(equalTo: cell.trailingAnchor), badge.bottomAnchor.constraint(equalTo: cell.bottomAnchor),
-            ])
-            row.addArrangedSubview(cell)
-        }
-        let sceneBox = NSStackView(views: [row])
-        sceneBox.alignment = .centerX
+        let marquee = IconMarqueeView(icons: icons)
+        marquee.translatesAutoresizingMaskIntoConstraints = false
+        marquee.widthAnchor.constraint(equalToConstant: 536).isActive = true
+        marquee.heightAnchor.constraint(equalToConstant: 96).isActive = true
+        let sceneBox = NSStackView(views: [marquee])
         sceneBox.translatesAutoresizingMaskIntoConstraints = false
         sceneBox.widthAnchor.constraint(equalToConstant: 536).isActive = true
-        sceneBox.edgeInsets = NSEdgeInsets(top: 10, left: 0, bottom: 10, right: 0)
+        sceneBox.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 0)
 
         func point(_ symbol: String, _ text: String) -> NSView {
             let i = NSImageView(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)!)
@@ -493,6 +475,67 @@ final class OnboardingWindowController: NSWindowController {
         store.save(c)
         window?.close()
         onFinish()
+    }
+}
+
+/// App icons drifting slowly across, faded at both edges, each marked hidden.
+final class IconMarqueeView: NSView {
+    private let icons: [NSImage]
+    private var offset: CGFloat = 0
+    private var timer: Timer?
+    private var last = Date()
+    private let pitch: CGFloat = 112      // ≈4.8 icons across 536 pt
+    private let iconSize: CGFloat = 56
+    private let speed: CGFloat = 16       // pt per second
+
+    init(icons: [NSImage]) {
+        self.icons = icons
+        super.init(frame: .zero)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        timer?.invalidate()
+        timer = nil
+        guard window != nil else { return }
+        last = Date()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let now = Date()
+            self.offset += self.speed * CGFloat(now.timeIntervalSince(self.last))
+            self.last = now
+            self.needsDisplay = true
+        }
+        RunLoop.main.add(timer!, forMode: .common)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let n = icons.count
+        let total = CGFloat(n) * pitch
+        let y = bounds.midY - iconSize / 2
+        // Right to left: x decreases as offset grows.
+        for k in 0..<(n + Int(bounds.width / pitch) + 2) {
+            let base = CGFloat(k) * pitch - offset.truncatingRemainder(dividingBy: total)
+            let x = base + (base < -pitch ? total : 0)
+            guard x > -pitch, x < bounds.width + pitch else { continue }
+            let img = icons[k % n]
+            img.draw(in: NSRect(x: x, y: y, width: iconSize, height: iconSize), from: .zero, operation: .sourceOver, fraction: 0.3)
+            // badge
+            let br = NSRect(x: x + iconSize - 14, y: y - 6, width: 22, height: 22)
+            NSColor.controlAccentColor.setFill()
+            NSBezierPath(ovalIn: br).fill()
+            if let sym = NSImage(systemSymbolName: "eye.slash.fill", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 11, weight: .semibold)) {
+                let tinted = sym.copy() as! NSImage
+                tinted.lockFocus(); NSColor.white.set(); NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop); tinted.unlockFocus()
+                tinted.draw(in: NSRect(x: br.midX - tinted.size.width / 2, y: br.midY - tinted.size.height / 2, width: tinted.size.width, height: tinted.size.height))
+            }
+        }
+        // Fade at both edges into the window background.
+        let bg = NSColor.windowBackgroundColor
+        let fade: CGFloat = 90
+        NSGradient(starting: bg, ending: bg.withAlphaComponent(0))?.draw(in: NSRect(x: 0, y: 0, width: fade, height: bounds.height), angle: 0)
+        NSGradient(starting: bg.withAlphaComponent(0), ending: bg)?.draw(in: NSRect(x: bounds.width - fade, y: 0, width: fade, height: bounds.height), angle: 0)
     }
 }
 
