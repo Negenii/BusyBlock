@@ -70,8 +70,13 @@ async function syncNow() {
 
 // Diagnostics to the helper's log (it only accepts extension origins).
 function report(msg) {
-  fetch("http://127.0.0.1:" + port + "/log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ msg }) }).catch(() => {});
+  // `page` lets the helper's /go page hop straight to blocked.html even when
+  // the browser doesn't inject our content script on 127.0.0.1 (Safari after
+  // a reinstall, until the site permission is granted again).
+  fetch("http://127.0.0.1:" + port + "/log", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ msg, page: api.runtime.getURL("blocked.html") }) }).catch(() => {});
 }
+report("worker started");
 let lastReport = "";
 globalThis.onRulesError = (e) => report("rules error: " + (e && e.message || e));
 

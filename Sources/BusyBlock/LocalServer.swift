@@ -19,6 +19,12 @@ final class LocalServer {
     private let log: (String) -> Void
     private var sseClients: [ObjectIdentifier: NWConnection] = [:]
     private var lastPollLog: [String: Date] = [:]
+    /// blocked.html URL per browser kind, as reported by its worker (server queue only).
+    private var blockedPageURL: [String: String] = [:]
+
+    private static func browserKind(_ ua: String) -> String {
+        ua.contains("Chrome") || ua.contains("Chromium") ? "chrome" : ua.contains("Safari") ? "safari" : ua.contains("Firefox") ? "firefox" : "other"
+    }
 
     init(port: UInt16, log: @escaping (String) -> Void = { print($0) }, stateProvider: @escaping () -> BlockState) {
         self.port = port
@@ -168,12 +174,17 @@ final class LocalServer {
         }
 
         if method == "GET" && path == "/go" {
-            // Safari's redirect lands here; the extension's content script hops on
-            // to blocked.html. Shown only if the extension is missing.
+            // Safari's redirect lands here. If this browser's worker told us its
+            // block page URL, hop there right away; otherwise the extension's
+            // content script does it, and the text below shows only if neither can.
+            let kind = Self.browserKind(Self.header(requestHead, "user-agent") ?? "")
+            let u = query["u"] ?? ""
+            let target = blockedPageURL[kind].map { $0 + "?u=" + (u.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "") }
+            let hop = target.map { "<script>location.replace(\"\($0)\")</script>" } ?? ""
             let html = """
-            <!doctype html><meta charset="utf-8"><title>BusyBlock</title>
+            <!doctype html><meta charset="utf-8"><title>BusyBlock</title>\(hop)
             <body style="margin:0;background:#0e0c0c;color:#9a9a96;font:15px -apple-system,sans-serif;display:grid;place-items:center;height:100vh">
-            <p>Blocked while the BUSY Bar is busy. If this page stays, the BusyBlock extension is not enabled in this browser.</p>
+            <p>Blocked while the BUSY Bar is busy. If this page stays, the BusyBlock extension is not enabled for this site: check Safari → Settings → Extensions → BusyBlock → Allow on every website.</p>
             """
             let body = Data(html.utf8)
             var head = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\n"
@@ -199,7 +210,11 @@ final class LocalServer {
             // Diagnostics from the extension worker (extension origins only).
             if fromExtension, let obj = try? JSONSerialization.jsonObject(with: reqBody) as? [String: Any] {
                 let ua = Self.header(requestHead, "user-agent") ?? ""
-                let kind = ua.contains("Chrome") ? "chrome" : ua.contains("Safari") ? "safari" : "other"
+                let kind = Self.browserKind(ua)
+                if let page = obj["page"] as? String, page.contains("://"), page.hasSuffix("/blocked.html") {
+                    if blockedPageURL[kind] != page { log("[\(kind) worker] block page is \(page)") }
+                    blockedPageURL[kind] = page
+                }
                 log("[\(kind) worker] \(obj["msg"] as? String ?? "")")
                 body = Data(#"{"ok":true}"#.utf8)
             } else {
