@@ -491,8 +491,21 @@ final class IconMarqueeView: NSView {
     init(icons: [NSImage]) {
         self.icons = icons
         super.init(frame: .zero)
+        // Fade the edges with an alpha mask, so whatever the page background is shows through.
+        wantsLayer = true
+        let mask = CAGradientLayer()
+        mask.startPoint = CGPoint(x: 0, y: 0.5)
+        mask.endPoint = CGPoint(x: 1, y: 0.5)
+        mask.colors = [NSColor.clear.cgColor, NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
+        mask.locations = [0, 0.18, 0.82, 1]
+        layer?.mask = mask
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        layer?.mask?.frame = bounds
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -531,11 +544,6 @@ final class IconMarqueeView: NSView {
                 tinted.draw(in: NSRect(x: br.midX - tinted.size.width / 2, y: br.midY - tinted.size.height / 2, width: tinted.size.width, height: tinted.size.height))
             }
         }
-        // Fade at both edges into the window background.
-        let bg = NSColor.windowBackgroundColor
-        let fade: CGFloat = 90
-        NSGradient(starting: bg, ending: bg.withAlphaComponent(0))?.draw(in: NSRect(x: 0, y: 0, width: fade, height: bounds.height), angle: 0)
-        NSGradient(starting: bg.withAlphaComponent(0), ending: bg)?.draw(in: NSRect(x: bounds.width - fade, y: 0, width: fade, height: bounds.height), angle: 0)
     }
 }
 
