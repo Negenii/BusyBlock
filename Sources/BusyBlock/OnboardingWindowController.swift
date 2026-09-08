@@ -173,9 +173,10 @@ final class OnboardingWindowController: NSWindowController {
         btns.orientation = .horizontal
         netDeniedBox.addArrangedSubview(btns)
         netDeniedBox.isHidden = true
-        return page("One permission first",
-                    "To find your BUSY Bar, BusyBlock talks to devices on your local network: over the USB link and over Wi-Fi. macOS asks you once whether that's okay.",
-                    [row, netStatus, netDeniedBox])
+        let why = label("To find the bar, BusyBlock talks to devices on your local network: over the USB link and over Wi-Fi. macOS asks you once whether that's okay.")
+        return page("Welcome to BusyBlock",
+                    "The BUSY Bar is great at keeping distractions off your phone. BusyBlock is the missing piece for your Mac: it hides apps and blocks websites while the bar's timer runs.",
+                    [why, row, netStatus, netDeniedBox])
     }
 
     @objc private func askNetwork() {
@@ -269,7 +270,7 @@ final class OnboardingWindowController: NSWindowController {
             centre.centerYAnchor.constraint(equalTo: holder.centerYAnchor),
             holder.widthAnchor.constraint(equalToConstant: 536),
         ])
-        let v = page("Let's find your BUSY Bar", "BusyBlock hides apps and blocks websites while the bar's timer is running, so first it needs to see the bar.",
+        let v = page("Let's find your BUSY Bar", "The bar is in charge: it tells BusyBlock when to block distractions and when to let them back in.",
                      [holder, manualBox])
         v.heightAnchor.constraint(equalToConstant: 372).isActive = true
         return v
@@ -324,17 +325,56 @@ final class OnboardingWindowController: NSWindowController {
         safariSteps.alignment = .leading
         safariSteps.spacing = 8
 
-        let chromeIcon = NSImageView(image: NSImage(systemSymbolName: "puzzlepiece.extension", accessibilityDescription: nil)!)
-        chromeIcon.symbolConfiguration = .init(pointSize: 22, weight: .regular)
-        chromeIcon.contentTintColor = .secondaryLabelColor
-        let chromeText = label("Chrome, Arc, Brave, Edge: install the BusyBlock extension from the Chrome Web Store (link coming soon).", muted: true)
-        let chrome = NSStackView(views: [chromeIcon, chromeText])
-        chrome.orientation = .horizontal
-        chrome.alignment = .top
-        chrome.spacing = 10
+        let ws = NSWorkspace.shared
+        func appIcon(_ bundleID: String, size: CGFloat) -> NSImage? {
+            guard let url = ws.urlForApplication(withBundleIdentifier: bundleID) else { return nil }
+            let i = ws.icon(forFile: url.path)
+            i.size = NSSize(width: size, height: size)
+            return i
+        }
+        // Safari first: its icon from the system, next to the steps it needs.
+        let safariIcon = NSImageView(image: appIcon("com.apple.Safari", size: 28) ?? NSImage(systemSymbolName: "safari", accessibilityDescription: nil)!)
+        safariIcon.translatesAutoresizingMaskIntoConstraints = false
+        safariIcon.widthAnchor.constraint(equalToConstant: 28).isActive = true
+        safariIcon.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        let safariTitle = NSTextField(labelWithString: "Safari")
+        safariTitle.font = .systemFont(ofSize: 15, weight: .semibold)
+        let safariHead = NSStackView(views: [safariIcon, safariTitle])
+        safariHead.orientation = .horizontal
+        safariHead.alignment = .centerY
+        safariHead.spacing = 8
 
-        return page("Add the browser extension", "The extension is already inside this app for Safari; it only needs to be switched on.",
-                    [safariSteps, chrome])
+        // Other browsers, only the ones actually installed: their icon opens the store.
+        var others: [NSView] = []
+        for b in BrowserStore.all where ws.urlForApplication(withBundleIdentifier: b.bundleID) != nil {
+            guard let icon = appIcon(b.bundleID, size: 28) else { continue }
+            let btn = NSButton(image: icon, target: self, action: #selector(openStore(_:)))
+            btn.isBordered = false
+            btn.imageScaling = .scaleProportionallyDown
+            btn.identifier = .init(b.bundleID)
+            btn.toolTip = "Get the BusyBlock extension for \(b.name)"
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            btn.widthAnchor.constraint(equalToConstant: 32).isActive = true
+            btn.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            others.append(btn)
+        }
+        var body: [NSView] = [safariHead, safariSteps]
+        if !others.isEmpty {
+            let names = BrowserStore.all.filter { b in others.contains { $0.identifier?.rawValue == b.bundleID } }.map(\.name)
+            let text = label("\(names.joined(separator: ", ")): click the icon to get the extension from the store.", muted: true)
+            let row = NSStackView(views: others + [text])
+            row.orientation = .horizontal
+            row.alignment = .centerY
+            row.spacing = 8
+            row.setCustomSpacing(12, after: others.last!)
+            body.append(row)
+        }
+        return page("Add the browser extension", "The extension is already inside this app for Safari; it only needs to be switched on.", body)
+    }
+
+    @objc private func openStore(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue, let b = BrowserStore.all.first(where: { $0.bundleID == id }) else { return }
+        NSWorkspace.shared.open(b.store)
     }
 
     private enum Illustration { case extensionsTab, tickRow, allowButton, toolbar }
@@ -438,7 +478,7 @@ final class OnboardingWindowController: NSWindowController {
         pictures.orientation = .horizontal
         pictures.alignment = .top
         pictures.spacing = 16
-        return page("Run it quietly", "BusyBlock has nothing to say most of the time, so it can stay out of sight.",
+        return page("Like it discreet?", "BusyBlock has nothing to say most of the time, so it can stay out of sight.",
                     [loginCheck, label("Where do you want its icon?", size: 13), pictures, iconsNote])
     }
 
@@ -743,6 +783,20 @@ final class IllustrationView: NSView {
             icon("puzzlepiece.extension", at: NSPoint(x: bar.maxX - 16, y: bar.midY - 6), size: 11, tint: .tertiaryLabelColor)
         }
     }
+}
+
+/// Browsers other than Safari, and where their extension store listing lives.
+/// Store links are placeholders until the listings exist.
+enum BrowserStore {
+    struct Entry { let bundleID: String; let name: String; let store: URL }
+    static let chromeWebStore = URL(string: "https://chromewebstore.google.com/search/BusyBlock")!
+    static let all: [Entry] = [
+        Entry(bundleID: "com.google.Chrome", name: "Chrome", store: chromeWebStore),
+        Entry(bundleID: "company.thebrowser.Browser", name: "Arc", store: chromeWebStore),
+        Entry(bundleID: "com.brave.Browser", name: "Brave", store: chromeWebStore),
+        Entry(bundleID: "com.microsoft.edgemac", name: "Edge", store: chromeWebStore),
+        Entry(bundleID: "org.mozilla.firefox", name: "Firefox", store: URL(string: "https://addons.mozilla.org/firefox/search/?q=BusyBlock")!),
+    ]
 }
 
 /// A small picture of the menu bar or the Dock with BusyBlock's icon in place.
