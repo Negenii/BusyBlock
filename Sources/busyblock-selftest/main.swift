@@ -152,6 +152,8 @@ do {
 // MARK: suggestions / origin policy
 check(Suggestions.remaining(given: ["youtube.com", "X.com"]).contains("reddit.com"), "suggestions keep unlisted")
 check(!Suggestions.remaining(given: ["youtube.com", "X.com"]).contains("x.com"), "suggestions drop listed (case-insensitive)")
+let appSugg = Suggestions.remainingApps(given: ["ru.keepcoder.Telegram"], installed: { ["ru.keepcoder.Telegram", "com.apple.mail"].contains($0) })
+check(appSugg.map { $0.id } == ["com.apple.mail"], "app suggestions: installed and not yet listed")
 check(OriginPolicy.isExtension("chrome-extension://abc"), "chrome extension origin allowed")
 check(OriginPolicy.isExtension("safari-web-extension://ABC-123"), "safari extension origin allowed")
 check(!OriginPolicy.isExtension("https://evil.example"), "web origin rejected")

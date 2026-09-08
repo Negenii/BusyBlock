@@ -28,6 +28,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     // Apps
     private let appsTable = NSTableView()
     private let dropZone = DropZoneView()
+    private let appPills = FlowView()
     private var apps: [String] = []
 
     // Domains
@@ -42,7 +43,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
     init(store: ConfigStore, controller: BlockController) {
         self.store = store
         self.controller = controller
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 820),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 880),
                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         w.title = "BusyBlock"
         w.isReleasedWhenClosed = false
@@ -104,6 +105,12 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         root.addArrangedSubview(dropZone)
         dropZone.translatesAutoresizingMaskIntoConstraints = false
         dropZone.heightAnchor.constraint(equalToConstant: 64).isActive = true
+        let appPillsHint = NSTextField(labelWithString: "Installed apps people usually hide, one click to add:")
+        appPillsHint.textColor = .secondaryLabelColor
+        appPillsHint.font = .systemFont(ofSize: 11)
+        root.addArrangedSubview(appPillsHint)
+        appPills.spacing = 6
+        root.addArrangedSubview(appPills)
 
         root.addArrangedSubview(header("Websites to block"))
         chips.spacing = 8
@@ -229,6 +236,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         restCheck.state = c.blockDuringRest ? .on : .off
         screenCheck.state = c.showScreenInBrowser ? .on : .off
         if apps != c.blockedApps { apps = c.blockedApps; appsTable.reloadData() }
+        rebuildAppPills()
         if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
         faviconCheck.state = c.faviconFallback ? .on : .off
         FaviconLoader.shared.allowThirdParty = c.faviconFallback
@@ -313,6 +321,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         }
         guard added else { return }
         appsTable.reloadData()
+        rebuildAppPills()
         saveDebounce.send()
     }
 
@@ -331,6 +340,35 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
             chips.addSubview(chip)
         }
         chips.needsLayout = true
+    }
+
+    private func rebuildAppPills() {
+        appPills.subviews.forEach { $0.removeFromSuperview() }
+        let ws = NSWorkspace.shared
+        for app in Suggestions.remainingApps(given: apps, installed: { ws.urlForApplication(withBundleIdentifier: $0) != nil }) {
+            let b = NSButton(title: app.name, target: self, action: #selector(appPillTapped(_:)))
+            b.bezelStyle = .badge
+            b.controlSize = .regular
+            b.font = .systemFont(ofSize: 12)
+            if let url = ws.urlForApplication(withBundleIdentifier: app.id) {
+                let icon = ws.icon(forFile: url.path)
+                icon.size = NSSize(width: 18, height: 18)
+                b.image = icon
+                b.imagePosition = .imageLeading
+            }
+            b.identifier = .init(app.id)
+            b.toolTip = "Hide \(app.name) while the bar is busy"
+            appPills.addSubview(b)
+        }
+        appPills.needsLayout = true
+    }
+
+    @objc private func appPillTapped(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue, !apps.contains(id) else { return }
+        apps.append(id)
+        appsTable.reloadData()
+        rebuildAppPills()
+        saveDebounce.send()
     }
 
     private func rebuildPills() {
@@ -375,6 +413,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
         guard !rows.isEmpty, table === appsTable else { return }
         apps = apps.enumerated().filter { !rows.contains($0.offset) }.map(\.element)
         table.reloadData()
+        rebuildAppPills()
         saveDebounce.send()
     }
 
@@ -397,7 +436,7 @@ final class SettingsWindowController: NSWindowController, NSTableViewDataSource,
             }
             cell.onRemove = { [weak self] in
                 guard let self, let i = self.apps.firstIndex(of: id) else { return }
-                self.apps.remove(at: i); self.appsTable.reloadData(); self.saveDebounce.send()
+                self.apps.remove(at: i); self.appsTable.reloadData(); self.rebuildAppPills(); self.saveDebounce.send()
             }
             return cell
         }

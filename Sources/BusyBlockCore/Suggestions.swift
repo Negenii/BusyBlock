@@ -9,6 +9,25 @@ public enum Suggestions {
         "news.ycombinator.com", "9gag.com",
     ]
 
+    /// Apps people usually hide, by bundle id. Only the installed ones are shown.
+    public static let apps: [(id: String, name: String)] = [
+        ("ru.keepcoder.Telegram", "Telegram"), ("org.telegram.desktop", "Telegram Desktop"),
+        ("net.whatsapp.WhatsApp", "WhatsApp"), ("com.tinyspeck.slackmacgap", "Slack"),
+        ("com.hnc.Discord", "Discord"), ("com.apple.MobileSMS", "Messages"),
+        ("com.apple.mail", "Mail"), ("com.twitter.twitter-mac", "X"),
+        ("org.whispersystems.signal-desktop", "Signal"), ("com.viber.osx", "Viber"),
+        ("com.facebook.archon", "Messenger"), ("com.microsoft.teams2", "Teams"),
+        ("com.valvesoftware.steam", "Steam"), ("com.epicgames.EpicGamesLauncher", "Epic Games"),
+        ("com.apple.TV", "TV"), ("com.apple.Music", "Music"), ("com.spotify.client", "Spotify"),
+        ("com.apple.news", "News"), ("com.apple.Photos", "Photos"),
+    ]
+
+    /// App suggestions not yet in the list; `installed` decides which exist on this Mac.
+    public static func remainingApps(given blocked: [String], installed: (String) -> Bool) -> [(id: String, name: String)] {
+        let have = Set(blocked)
+        return apps.filter { !have.contains($0.id) && installed($0.id) }
+    }
+
     /// Suggestions not yet in the list.
     public static func remaining(given blocked: [String]) -> [String] {
         let have = Set(blocked.map { $0.lowercased() })
