@@ -18,6 +18,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let statusDot = DotView()
     private let spinner = NSProgressIndicator()
     private var root: NSStackView!
+    private var scroll: NSScrollView!
     private let statusTitle = NSTextField(labelWithString: "")
     private let statusDetail = NSTextField(labelWithString: "")
 
@@ -69,12 +70,23 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         let container = DropContainerView()
         container.zone = dropZone
         container.onDrop = { [weak self] urls in self?.addApps(urls) }
+        // Content scrolls inside the window when it would not fit on screen.
         let content = buildContent()
         content.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(content)
+        let scroll = NSScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.drawsBackground = false
+        scroll.documentView = content
+        self.scroll = scroll
+        container.addSubview(scroll)
         NSLayoutConstraint.activate([
-            content.leadingAnchor.constraint(equalTo: container.leadingAnchor), content.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            content.topAnchor.constraint(equalTo: container.topAnchor), content.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: container.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: container.topAnchor), scroll.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            content.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
+            content.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+            content.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
         ])
         container.installOverlay()
         w.contentView = container
@@ -347,14 +359,22 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     /// The window takes the height of its content; a fixed height would make
     /// the stack pad the slack into some row.
+    /// Window height follows the content, capped so it always fits on the screen
+    /// (below the menu bar, above the Dock); beyond that the content scrolls.
     private func fitWindow() {
         guard let w = window, let root else { return }
         root.layoutSubtreeIfNeeded()
-        let h = root.fittingSize.height
+        let wanted = root.fittingSize.height
+        let screen = (w.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let titleBar = w.frame.height - w.contentRect(forFrameRect: w.frame).height
+        let maxContent = screen.height - titleBar - 24
+        let h = min(wanted, maxContent)
         var f = w.frame
         let delta = h - w.contentRect(forFrameRect: f).height
         f.origin.y -= delta
         f.size.height += delta
+        if f.maxY > screen.maxY { f.origin.y = screen.maxY - f.height }
+        if f.minY < screen.minY { f.origin.y = screen.minY }
         w.setFrame(f, display: true, animate: false)
     }
 
