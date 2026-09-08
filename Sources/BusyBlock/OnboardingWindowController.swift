@@ -19,7 +19,6 @@ final class OnboardingWindowController: NSWindowController {
     private let netStatus = NSTextField(wrappingLabelWithString: "")
     private let netDeniedBox = NSStackView()
     private var netResult: LocalNetworkAccess.Result?
-    private let faviconCheck = NSButton(checkboxWithTitle: "Fetch website icons automatically", target: nil, action: nil)
 
     private var pages: [NSView] = []
     private var index = 0
@@ -50,13 +49,15 @@ final class OnboardingWindowController: NSWindowController {
         self.controller = controller
         self.startNetworking = startNetworking
         self.onFinish = onFinish
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 460),
                          styleMask: [.titled, .closable], backing: .buffered, defer: false)
         w.title = "Welcome to BusyBlock"
         w.titlebarAppearsTransparent = true
         w.isReleasedWhenClosed = false
         super.init(window: w)
-        w.contentView = build()
+        let root = build()
+        w.contentView = root
+        w.setContentSize(root.fittingSize)
         w.center()
         controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in
             self?.refreshFind()
@@ -172,20 +173,9 @@ final class OnboardingWindowController: NSWindowController {
         btns.orientation = .horizontal
         netDeniedBox.addArrangedSubview(btns)
         netDeniedBox.isHidden = true
-        faviconCheck.state = store.config.faviconFallback ? .on : .off
-        faviconCheck.target = self
-        faviconCheck.action = #selector(toggleFavicons)
-        let favNote = label("Icons come from the site itself, or from DuckDuckGo's icon service when a site has none. Turn this off if you'd rather not have domain names sent there.", muted: true)
-        favNote.font = .systemFont(ofSize: 11)
-        let favBox = NSStackView(views: [faviconCheck, favNote])
-        favBox.orientation = .vertical
-        favBox.alignment = .leading
-        favBox.spacing = 4
-        favBox.translatesAutoresizingMaskIntoConstraints = false
-        favBox.edgeInsets = NSEdgeInsets(top: 18, left: 0, bottom: 0, right: 0)
         return page("One permission first",
                     "To find your BUSY Bar, BusyBlock talks to devices on your local network: over the USB link and over Wi-Fi. macOS asks you once whether that's okay.",
-                    [row, netStatus, netDeniedBox, favBox])
+                    [row, netStatus, netDeniedBox])
     }
 
     @objc private func askNetwork() {
@@ -215,13 +205,6 @@ final class OnboardingWindowController: NSWindowController {
                 netButton.title = "Check again"
             }
         }
-    }
-
-    @objc private func toggleFavicons() {
-        var c = store.config
-        c.faviconFallback = faviconCheck.state == .on
-        store.save(c)
-        FaviconLoader.shared.allowThirdParty = c.faviconFallback
     }
 
     @objc private func openPrivacySettings() {
@@ -465,8 +448,7 @@ final class OnboardingWindowController: NSWindowController {
         rebuildPicks()
         return page("Pick what distracts you",
                     "One click adds it to the block list; click again to remove. Everything else lives in Settings.",
-                    [label("Apps to hide", size: 13), appPicks, label("Websites to block", size: 13), sitePicks,
-                     label("Drop any other app onto the Settings window later, or type a website there.", muted: true)])
+                    [label("Apps to hide", size: 13), appPicks, label("Websites to block", size: 13), sitePicks])
     }
 
     private func rebuildPicks() {
@@ -474,14 +456,15 @@ final class OnboardingWindowController: NSWindowController {
         let c = store.config
         appPicks.subviews.forEach { $0.removeFromSuperview() }
         for app in Suggestions.apps {
-            guard let url = ws.urlForApplication(withBundleIdentifier: app.id) else { continue }
+            guard appPicks.subviews.count < Suggestions.tourAppLimit,
+                  let url = ws.urlForApplication(withBundleIdentifier: app.id) else { continue }
             let chip = PickChipView(title: app.name, on: c.blockedApps.contains(app.id))
             chip.icon.image = ws.icon(forFile: url.path)
             chip.onTap = { [weak self] in self?.toggleApp(app.id) }
             appPicks.addSubview(chip)
         }
         sitePicks.subviews.forEach { $0.removeFromSuperview() }
-        for d in Suggestions.domains {
+        for d in Suggestions.tourDomains {
             let chip = PickChipView(title: d, on: c.blockedDomains.contains(d))
             chip.icon.image = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
             chip.icon.contentTintColor = .secondaryLabelColor

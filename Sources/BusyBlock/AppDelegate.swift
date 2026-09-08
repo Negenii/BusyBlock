@@ -100,7 +100,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         server.faviconProvider = { host, done in
             guard !host.isEmpty else { done(nil); return }
             DispatchQueue.main.async {
-                FaviconLoader.shared.allowThirdParty = self.store.config.faviconFallback
                 FaviconLoader.shared.png(for: host, completion: done)
             }
         }

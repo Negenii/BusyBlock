@@ -37,9 +37,6 @@ final class FaviconLoader {
         dir.appendingPathComponent(host.replacingOccurrences(of: "/", with: "_") + "@\(Self.cacheVersion).png")
     }
 
-    /// Whether the DuckDuckGo fallback may be used (Settings → favicons switch).
-    var allowThirdParty = true
-
     /// PNG of the largest representation (ICO files carry several sizes).
     static func pngData(_ img: NSImage) -> Data? {
         let biggest = img.representations.max { $0.pixelsWide < $1.pixelsWide }
@@ -68,9 +65,8 @@ final class FaviconLoader {
         waiters[host, default: []].append(completion)
         guard !inFlight.contains(host) else { return }
         inFlight.insert(host)
-        let thirdParty = allowThirdParty
         Task { [weak self] in
-            let image = await Self.fetch(host: host, session: self?.session ?? .shared, thirdParty: thirdParty)
+            let image = await Self.fetch(host: host, session: self?.session ?? .shared)
             await MainActor.run {
                 guard let self else { return }
                 self.inFlight.remove(host)
@@ -85,9 +81,9 @@ final class FaviconLoader {
     }
 
     /// Collects every icon the site offers (home-screen icons, <link rel=icon>,
-    /// favicon.ico) and keeps the sharpest one actually served. Third-party
-    /// icon services only when allowed in Settings.
-    private static func fetch(host: String, session: URLSession, thirdParty: Bool) async -> NSImage? {
+    /// favicon.ico) and keeps the sharpest one actually served, then falls
+    /// back to Google's and DuckDuckGo's icon services.
+    private static func fetch(host: String, session: URLSession) async -> NSImage? {
         let hosts = [host, "www." + host]
         var candidates: [String] = []
         for h in hosts {
@@ -101,10 +97,8 @@ final class FaviconLoader {
             candidates.append("https://\(h)/apple-touch-icon-precomposed.png")
         }
         for h in hosts { candidates.append("https://\(h)/favicon.ico") }
-        if thirdParty {
-            candidates.append("https://www.google.com/s2/favicons?domain=\(host)&sz=128")
-            candidates.append("https://icons.duckduckgo.com/ip3/\(host).ico")
-        }
+        candidates.append("https://www.google.com/s2/favicons?domain=\(host)&sz=128")
+        candidates.append("https://icons.duckduckgo.com/ip3/\(host).ico")
 
         var best: NSImage?
         var bestPx: CGFloat = 0

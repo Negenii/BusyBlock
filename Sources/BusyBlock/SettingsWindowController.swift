@@ -54,7 +54,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let pills = FlowView()
     private var pillsHint = NSTextField(labelWithString: "")
     private var appPillsHint = NSTextField(labelWithString: "")
-    private let faviconCheck = NSButton(checkboxWithTitle: "Fetch site icons automatically (turn off for more privacy)", target: nil, action: nil)
 
     private let saveDebounce = PassthroughSubject<Void, Never>()
 
@@ -215,10 +214,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         pillsHint.font = .systemFont(ofSize: 11)
         root.addArrangedSubview(pillsHint)
         root.addArrangedSubview(pills)
-        faviconCheck.target = self
-        faviconCheck.action = #selector(toggled)
-        faviconCheck.toolTip = "Asks the site itself for its favicon.ico first; if it has none, asks DuckDuckGo's icon service, which then sees the domain name."
-        root.addArrangedSubview(faviconCheck)
 
 
         for v in root.arrangedSubviews {
@@ -367,8 +362,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         rebuildAppChips()
         rebuildAppPills()
         if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
-        faviconCheck.state = c.faviconFallback ? .on : .off
-        FaviconLoader.shared.allowThirdParty = c.faviconFallback
         rebuildPills()
         refreshStatus()
     }
@@ -385,7 +378,6 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         c.showTimerInMenuBar = timerCheck.state == .on
         c.showMenuBarIcon = menuIconCheck.state == .on
         c.showDockIcon = dockIconCheck.state == .on
-        c.faviconFallback = faviconCheck.state == .on
         c.blockedApps = apps
         c.blockedDomains = domains
         store.save(c)

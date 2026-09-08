@@ -14,9 +14,6 @@ public struct Config: Codable, Equatable {
     /// When the configured host doesn't answer, look for the bar on USB,
     /// `busybar.local` and Bonjour before giving up.
     public var autoDiscover: Bool
-    /// Ask DuckDuckGo's icon service for favicons a site doesn't serve itself.
-    /// Off means only the site's own /favicon.ico is tried (nothing leaves the LAN otherwise).
-    public var faviconFallback: Bool
     /// Countdown next to the menu-bar icon. Off by default: most people also
     /// run the BUSY app, which already shows the timer.
     public var showTimerInMenuBar: Bool
@@ -32,7 +29,7 @@ public struct Config: Codable, Equatable {
                 pollIntervalSec: Double = 2, localPort: UInt16 = 48321,
                 blockDuringRest: Bool = false, blockedApps: [String] = [],
                 blockedDomains: [String] = [], showScreenInBrowser: Bool = true,
-                autoDiscover: Bool = true, faviconFallback: Bool = true,
+                autoDiscover: Bool = true,
                 showTimerInMenuBar: Bool = false, showMenuBarIcon: Bool = true,
                 showDockIcon: Bool = false, onboardingDone: Bool = false) {
         self.barHost = barHost
@@ -44,7 +41,6 @@ public struct Config: Codable, Equatable {
         self.blockedDomains = blockedDomains
         self.showScreenInBrowser = showScreenInBrowser
         self.autoDiscover = autoDiscover
-        self.faviconFallback = faviconFallback
         self.showTimerInMenuBar = showTimerInMenuBar
         self.showMenuBarIcon = showMenuBarIcon
         self.showDockIcon = showDockIcon
@@ -80,7 +76,6 @@ public struct Config: Codable, Equatable {
         if let v = d.blockedApps { c.blockedApps = v }
         if let v = d.showScreenInBrowser { c.showScreenInBrowser = v }
         if let v = d.autoDiscover { c.autoDiscover = v }
-        if let v = d.faviconFallback { c.faviconFallback = v }
         if let v = d.showTimerInMenuBar { c.showTimerInMenuBar = v }
         if let v = d.showMenuBarIcon { c.showMenuBarIcon = v }
         if let v = d.showDockIcon { c.showDockIcon = v }
@@ -116,7 +111,6 @@ public struct Config: Codable, Equatable {
         var blockedDomains: [String]?
         var showScreenInBrowser: Bool?
         var autoDiscover: Bool?
-        var faviconFallback: Bool?
         var showTimerInMenuBar: Bool?
         var showMenuBarIcon: Bool?
         var showDockIcon: Bool?

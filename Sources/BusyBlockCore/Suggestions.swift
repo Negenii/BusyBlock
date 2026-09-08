@@ -5,9 +5,13 @@ public enum Suggestions {
     public static let domains: [String] = [
         "youtube.com", "instagram.com", "facebook.com", "x.com", "tiktok.com",
         "reddit.com", "twitch.tv", "netflix.com", "linkedin.com", "pinterest.com",
-        "threads.net", "discord.com", "web.telegram.org", "vk.com", "pikabu.ru",
-        "news.ycombinator.com", "9gag.com",
+        "threads.net", "discord.com", "web.telegram.org", "news.ycombinator.com", "9gag.com",
     ]
+
+    /// The short lists the welcome tour shows: enough to get going, few
+    /// enough to fit the page. Everything else is a click away in Settings.
+    public static let tourDomains: [String] = Array(domains.prefix(6))
+    public static let tourAppLimit = 6
 
     /// Apps people usually hide, by bundle id. Only the installed ones are shown.
     public static let apps: [(id: String, name: String)] = [
