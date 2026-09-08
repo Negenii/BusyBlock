@@ -115,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log("BusyBlock started, config at \(store.url.path)")
         // The settings window is the app's window: show it when a person
         // launched us (Finder, Launchpad, Spotlight), not when login did.
-        if CommandLine.arguments.contains("--settings") || !Self.launchedAsLoginItem() { showSettings() }
+        if CommandLine.arguments.contains("--settings") || openRequestedBeforeLaunch || !Self.launchedAsLoginItem() { showSettings() }
     }
 
     /// True when launchd started us as a login item (no one clicked anything).
@@ -142,8 +142,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// busyblock://open from the browser popup (Chrome and friends).
-    func application(_ application: NSApplication, open urls: [URL]) { showSettings() }
+    /// busyblock://open from the browser popup (Chrome and friends). This can
+    /// arrive before applicationDidFinishLaunching when the URL is what
+    /// launched us, so just remember it until we're set up.
+    private var openRequestedBeforeLaunch = false
+    func application(_ application: NSApplication, open urls: [URL]) {
+        if store == nil { openRequestedBeforeLaunch = true } else { showSettings() }
+    }
 
     /// Dock/Finder click on a running app.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
@@ -152,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showSettings() {
+        guard store != nil, controller != nil else { openRequestedBeforeLaunch = true; return }
         if settings == nil { settings = SettingsWindowController(store: store, controller: controller) }
         NSApp.activate(ignoringOtherApps: true)
         settings?.showWindow(nil)
