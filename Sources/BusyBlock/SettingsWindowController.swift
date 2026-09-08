@@ -173,6 +173,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         loginCheck.action = #selector(toggleLogin)
         root.addArrangedSubview(loginCheck)
 
+        appsCallout = callout("Start here: drop the apps you want hidden, or pick from the suggestions")
+        root.addArrangedSubview(appsCallout)
         root.addArrangedSubview(header("Apps to hide while the bar is busy"))
         appChips.spacing = 8
         dropZone.onClick = { [weak self] in self?.pickApp() }
@@ -195,6 +197,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         appPills.spacing = 6
         root.addArrangedSubview(appPills)
 
+        sitesCallout = callout("…and the websites to block")
+        root.addArrangedSubview(sitesCallout)
         root.addArrangedSubview(header("Websites to block"))
         chips.spacing = 8
         root.addArrangedSubview(chips)
@@ -281,6 +285,36 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             statusDot.widthAnchor.constraint(equalToConstant: 14), statusDot.heightAnchor.constraint(equalToConstant: 14),
         ])
         return card
+    }
+
+    private var appsCallout = NSView()
+    private var sitesCallout = NSView()
+
+    /// Accent bubble shown above a section right after onboarding.
+    private func callout(_ text: String) -> NSView {
+        let l = NSTextField(labelWithString: text)
+        l.font = .systemFont(ofSize: 12, weight: .medium)
+        l.textColor = .white
+        let box = NSView()
+        box.wantsLayer = true
+        box.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+        box.layer?.cornerRadius = 8
+        l.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(l)
+        NSLayoutConstraint.activate([l.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 10), l.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -10),
+                                     l.topAnchor.constraint(equalTo: box.topAnchor, constant: 6), l.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -6)])
+        box.isHidden = true
+        return box
+    }
+
+    func highlightSetup() {
+        for v in [appsCallout, sitesCallout] { v.isHidden = false; v.alphaValue = 1 }
+        fitWindow()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self else { return }
+            NSAnimationContext.runAnimationGroup({ ctx in ctx.duration = 0.6; self.appsCallout.animator().alphaValue = 0; self.sitesCallout.animator().alphaValue = 0 },
+                                                completionHandler: { [weak self] in self?.appsCallout.isHidden = true; self?.sitesCallout.isHidden = true; self?.fitWindow() })
+        }
     }
 
     private func header(_ text: String) -> NSView {

@@ -25,6 +25,8 @@ public struct Config: Codable, Equatable {
     public var showMenuBarIcon: Bool
     /// Regular app (Dock icon, ⌘-Tab) instead of a background one.
     public var showDockIcon: Bool
+    /// First-run walkthrough completed (or skipped).
+    public var onboardingDone: Bool
 
     public init(barHost: String = "10.0.4.20", barToken: String? = nil,
                 pollIntervalSec: Double = 2, localPort: UInt16 = 48321,
@@ -32,7 +34,7 @@ public struct Config: Codable, Equatable {
                 blockedDomains: [String] = [], showScreenInBrowser: Bool = true,
                 autoDiscover: Bool = true, faviconFallback: Bool = true,
                 showTimerInMenuBar: Bool = false, showMenuBarIcon: Bool = true,
-                showDockIcon: Bool = false) {
+                showDockIcon: Bool = false, onboardingDone: Bool = false) {
         self.barHost = barHost
         self.barToken = barToken
         self.pollIntervalSec = pollIntervalSec
@@ -46,6 +48,7 @@ public struct Config: Codable, Equatable {
         self.showTimerInMenuBar = showTimerInMenuBar
         self.showMenuBarIcon = showMenuBarIcon
         self.showDockIcon = showDockIcon
+        self.onboardingDone = onboardingDone
     }
 
     public static let defaults = Config()
@@ -81,6 +84,7 @@ public struct Config: Codable, Equatable {
         if let v = d.showTimerInMenuBar { c.showTimerInMenuBar = v }
         if let v = d.showMenuBarIcon { c.showMenuBarIcon = v }
         if let v = d.showDockIcon { c.showDockIcon = v }
+        if let v = d.onboardingDone { c.onboardingDone = v }
         if let v = d.blockedDomains {
             c.blockedDomains = Array(Set(v.map(Domain.normalize).filter { !$0.isEmpty })).sorted()
         }
@@ -116,5 +120,6 @@ public struct Config: Codable, Equatable {
         var showTimerInMenuBar: Bool?
         var showMenuBarIcon: Bool?
         var showDockIcon: Bool?
+        var onboardingDone: Bool?
     }
 }

@@ -1,0 +1,408 @@
+import AppKit
+import Combine
+import ServiceManagement
+import BusyBlockCore
+
+/// First-run walkthrough: find the bar, install the browser extension, explain
+/// hiding, pick launch-at-login and icons, then hand over to Settings.
+@MainActor
+final class OnboardingWindowController: NSWindowController {
+    private let store: ConfigStore
+    private let controller: BlockController
+    private let onFinish: () -> Void
+    private var cancellables = Set<AnyCancellable>()
+
+    private var pages: [NSView] = []
+    private var index = 0
+    private let pageHost = NSView()
+    private let dots = NSStackView()
+    private let backButton = NSButton(title: "Back", target: nil, action: nil)
+    private let nextButton = NSButton(title: "Continue", target: nil, action: nil)
+    private let skipButton = NSButton(title: "Skip", target: nil, action: nil)
+
+    // Page 1 widgets
+    private let findSpinner = NSProgressIndicator()
+    private let findTitle = NSTextField(labelWithString: "")
+    private let findText = NSTextField(wrappingLabelWithString: "")
+    private let findPanel = DevicePanelView()
+    private let hostField = NSTextField()
+    private let tokenField = NSTextField()
+    private let manualBox = NSStackView()
+
+    // Page 5 widgets
+    private let loginCheck = NSButton(checkboxWithTitle: "Launch BusyBlock at login", target: nil, action: nil)
+    private let menuCheck = NSButton(checkboxWithTitle: "Icon in the menu bar", target: nil, action: nil)
+    private let dockCheck = NSButton(checkboxWithTitle: "Icon in the Dock", target: nil, action: nil)
+    private let iconsNote = NSTextField(wrappingLabelWithString: "")
+
+    init(store: ConfigStore, controller: BlockController, onFinish: @escaping () -> Void) {
+        self.store = store
+        self.controller = controller
+        self.onFinish = onFinish
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "Welcome to BusyBlock"
+        w.titlebarAppearsTransparent = true
+        w.isReleasedWhenClosed = false
+        super.init(window: w)
+        w.contentView = build()
+        w.center()
+        controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
+        controller.$discovering.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
+        controller.$searchFailed.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
+        controller.$needsToken.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refreshFind() }.store(in: &cancellables)
+        LiveFrames.shared.$frame.receive(on: DispatchQueue.main).sink { [weak self] f in self?.findPanel.frame72 = f }.store(in: &cancellables)
+        show(0)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    // MARK: - Layout
+
+    private func build() -> NSView {
+        let root = NSStackView()
+        root.orientation = .vertical
+        root.alignment = .leading
+        root.spacing = 0
+        root.edgeInsets = NSEdgeInsets(top: 28, left: 32, bottom: 20, right: 32)
+        root.translatesAutoresizingMaskIntoConstraints = false
+        root.widthAnchor.constraint(equalToConstant: 600).isActive = true
+
+        pageHost.translatesAutoresizingMaskIntoConstraints = false
+        pageHost.widthAnchor.constraint(equalToConstant: 536).isActive = true
+        pageHost.heightAnchor.constraint(equalToConstant: 372).isActive = true
+        root.addArrangedSubview(pageHost)
+
+        dots.orientation = .horizontal
+        dots.spacing = 6
+        backButton.target = self; backButton.action = #selector(back)
+        nextButton.target = self; nextButton.action = #selector(next)
+        nextButton.keyEquivalent = "\r"
+        skipButton.target = self; skipButton.action = #selector(skip)
+        skipButton.isBordered = false
+        skipButton.contentTintColor = .secondaryLabelColor
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let bar = NSStackView(views: [skipButton, dots, spacer, backButton, nextButton])
+        bar.orientation = .horizontal
+        bar.alignment = .centerY
+        bar.spacing = 10
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        bar.widthAnchor.constraint(equalToConstant: 536).isActive = true
+        root.addArrangedSubview(bar)
+
+        pages = [pageFind(), pageExtension(), pageHiding(), pageStartup(), pageDone()]
+        for _ in pages {
+            let d = DotView()
+            d.translatesAutoresizingMaskIntoConstraints = false
+            d.widthAnchor.constraint(equalToConstant: 8).isActive = true
+            d.heightAnchor.constraint(equalToConstant: 8).isActive = true
+            dots.addArrangedSubview(d)
+        }
+        return root
+    }
+
+    private func page(_ title: String, _ subtitle: String, _ body: [NSView]) -> NSView {
+        let t = NSTextField(labelWithString: title)
+        t.font = .systemFont(ofSize: 24, weight: .bold)
+        let st = NSTextField(wrappingLabelWithString: subtitle)
+        st.font = .systemFont(ofSize: 14)
+        st.textColor = .secondaryLabelColor
+        let v = NSStackView(views: [t, st] + body)
+        v.orientation = .vertical
+        v.alignment = .leading
+        v.spacing = 14
+        v.setCustomSpacing(6, after: t)
+        v.translatesAutoresizingMaskIntoConstraints = false
+        for b in body { b.translatesAutoresizingMaskIntoConstraints = false }
+        st.preferredMaxLayoutWidth = 536
+        return v
+    }
+
+    private func label(_ text: String, size: CGFloat = 13, muted: Bool = false) -> NSTextField {
+        let l = NSTextField(wrappingLabelWithString: text)
+        l.font = .systemFont(ofSize: size)
+        if muted { l.textColor = .secondaryLabelColor }
+        l.preferredMaxLayoutWidth = 536
+        return l
+    }
+
+    // MARK: Page 1 — find the bar
+
+    private func pageFind() -> NSView {
+        findSpinner.style = .spinning
+        findSpinner.controlSize = .small
+        findSpinner.isDisplayedWhenStopped = false
+        findTitle.font = .systemFont(ofSize: 16, weight: .semibold)
+        let head = NSStackView(views: [findSpinner, findTitle])
+        head.orientation = .horizontal
+        head.spacing = 8
+        findText.font = .systemFont(ofSize: 13)
+        findText.textColor = .secondaryLabelColor
+        findText.preferredMaxLayoutWidth = 536
+        findPanel.translatesAutoresizingMaskIntoConstraints = false
+        findPanel.widthAnchor.constraint(equalToConstant: 360).isActive = true
+        findPanel.heightAnchor.constraint(equalToConstant: 360 * 248 / 768).isActive = true
+
+        hostField.placeholderString = "Bar address, e.g. 10.0.4.20 or 192.168.1.50"
+        tokenField.placeholderString = "API token, only if access protection is on"
+        for f in [hostField, tokenField] { f.translatesAutoresizingMaskIntoConstraints = false; f.widthAnchor.constraint(equalToConstant: 360).isActive = true }
+        let retry = NSButton(title: "Try again", target: self, action: #selector(retryFind))
+        manualBox.orientation = .vertical
+        manualBox.alignment = .leading
+        manualBox.spacing = 8
+        manualBox.addArrangedSubview(label("Connect the bar over USB, or make sure it's on the same Wi-Fi. You can also type its address:", muted: true))
+        manualBox.addArrangedSubview(hostField)
+        manualBox.addArrangedSubview(tokenField)
+        manualBox.addArrangedSubview(retry)
+        manualBox.isHidden = true
+
+        return page("Let's find your BUSY Bar", "BusyBlock hides apps and blocks websites while the bar's timer is running, so first it needs to see the bar.",
+                    [head, findPanel, findText, manualBox])
+    }
+
+    private func refreshFind() {
+        let s = controller.state
+        let searching = !s.barConnected && !controller.searchFailed && (controller.discovering || store.config.autoDiscover)
+        if searching { findSpinner.startAnimation(nil) } else { findSpinner.stopAnimation(nil) }
+        findPanel.dimmed = !s.barConnected
+        manualBox.isHidden = true
+        if controller.needsToken {
+            findTitle.stringValue = "Found it, but it wants an API token"
+            findText.stringValue = "The bar has access protection on. Create a token in its settings and paste it here."
+            manualBox.isHidden = false
+        } else if s.barConnected {
+            findTitle.stringValue = "Found your BUSY Bar"
+            let usb = s.host == BarLocator.usbHost
+            findText.stringValue = usb ? "Connected over USB. Everything else is optional; let's set it up." : "Connected over Wi-Fi (\(s.host)). Let's set it up."
+        } else if searching {
+            findTitle.stringValue = "Looking for the bar…"
+            findText.stringValue = "Checking USB, busybar.local and Bonjour."
+        } else {
+            findTitle.stringValue = "No bar found yet"
+            findText.stringValue = "You can continue anyway; BusyBlock keeps looking in the background."
+            manualBox.isHidden = false
+        }
+    }
+
+    @objc private func retryFind() {
+        var c = store.config
+        let host = hostField.stringValue.trimmingCharacters(in: .whitespaces)
+        if !host.isEmpty { c.barHost = host }
+        c.barToken = tokenField.stringValue.isEmpty ? nil : tokenField.stringValue
+        store.save(c)
+        controller.linkSuspect()
+    }
+
+    // MARK: Page 2 — browser extension
+
+    private func pageExtension() -> NSView {
+        let safariSteps = NSStackView(views: [
+            stepCard(1, "Safari → Settings → Extensions", illustration: .extensionsTab),
+            stepCard(2, "Tick BusyBlock", illustration: .tickRow),
+            stepCard(3, "Allow it on every website", illustration: .allowButton),
+            stepCard(4, "Keep its icon in the toolbar: that's where you block a site and see the timer", illustration: .toolbar),
+        ])
+        safariSteps.orientation = .vertical
+        safariSteps.alignment = .leading
+        safariSteps.spacing = 8
+
+        let chromeIcon = NSImageView(image: NSImage(systemSymbolName: "puzzlepiece.extension", accessibilityDescription: nil)!)
+        chromeIcon.symbolConfiguration = .init(pointSize: 22, weight: .regular)
+        chromeIcon.contentTintColor = .secondaryLabelColor
+        let chromeText = label("Chrome, Arc, Brave, Edge: install the BusyBlock extension from the Chrome Web Store (link coming soon).", muted: true)
+        let chrome = NSStackView(views: [chromeIcon, chromeText])
+        chrome.orientation = .horizontal
+        chrome.alignment = .top
+        chrome.spacing = 10
+
+        return page("Add the browser extension", "The extension is already inside this app for Safari; it only needs to be switched on.",
+                    [safariSteps, chrome])
+    }
+
+    private enum Illustration { case extensionsTab, tickRow, allowButton, toolbar }
+
+    private func stepCard(_ n: Int, _ text: String, illustration: Illustration) -> NSView {
+        let num = NSTextField(labelWithString: "\(n)")
+        num.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        num.textColor = .controlAccentColor
+        num.translatesAutoresizingMaskIntoConstraints = false
+        num.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        let t = label(text)
+        t.preferredMaxLayoutWidth = 300
+        let art = IllustrationView(kind: illustration)
+        art.translatesAutoresizingMaskIntoConstraints = false
+        art.widthAnchor.constraint(equalToConstant: 190).isActive = true
+        art.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let row = NSStackView(views: [num, t, spacer, art])
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 10
+        row.translatesAutoresizingMaskIntoConstraints = false
+        row.widthAnchor.constraint(equalToConstant: 536).isActive = true
+        return row
+    }
+
+    // MARK: Page 3 — hiding
+
+    private func pageHiding() -> NSView {
+        let icon = NSImageView(image: NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)!)
+        icon.symbolConfiguration = .init(pointSize: 40, weight: .light)
+        icon.contentTintColor = .controlAccentColor
+        return page("Apps get hidden, not quit",
+                    "While the bar is busy, the apps you list are hidden the moment they come to the front. Nothing is closed and nothing is lost: when the timer ends, they're right where you left them.",
+                    [icon,
+                     label("Websites open a BusyBlock page with the bar's own screen on it, and go back to normal when the session ends."),
+                     label("If you quit BusyBlock mid-session, the browser keeps blocking until the timer would have run out.", muted: true)])
+    }
+
+    // MARK: Page 4 — startup and icons
+
+    private func pageStartup() -> NSView {
+        loginCheck.target = self; loginCheck.action = #selector(toggleLogin)
+        menuCheck.target = self; menuCheck.action = #selector(toggleIcons)
+        dockCheck.target = self; dockCheck.action = #selector(toggleIcons)
+        loginCheck.state = .on
+        menuCheck.state = store.config.showMenuBarIcon ? .on : .off
+        dockCheck.state = store.config.showDockIcon ? .on : .off
+        iconsNote.font = .systemFont(ofSize: 12)
+        iconsNote.textColor = .secondaryLabelColor
+        iconsNote.preferredMaxLayoutWidth = 536
+        updateIconsNote()
+        return page("Run it quietly", "BusyBlock has nothing to say most of the time, so it can stay out of sight.",
+                    [loginCheck, label("Where do you want its icon?", size: 13), menuCheck, dockCheck, iconsNote])
+    }
+
+    @objc private func toggleLogin() {
+        guard #available(macOS 13, *) else { return }
+        do {
+            if loginCheck.state == .on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        }
+    }
+
+    @objc private func toggleIcons() {
+        var c = store.config
+        c.showMenuBarIcon = menuCheck.state == .on
+        c.showDockIcon = dockCheck.state == .on
+        store.save(c)
+        updateIconsNote()
+    }
+
+    private func updateIconsNote() {
+        iconsNote.stringValue = (menuCheck.state == .off && dockCheck.state == .off)
+            ? "No icon at all is fine: open BusyBlock from the browser extension's popup, from the Applications folder, or Spotlight."
+            : "You can change this later in Settings."
+    }
+
+    // MARK: Page 5 — done
+
+    private func pageDone() -> NSView {
+        let icon = NSImageView(image: NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: nil)!)
+        icon.symbolConfiguration = .init(pointSize: 40, weight: .light)
+        icon.contentTintColor = .systemGreen
+        return page("That's it", "Last thing: tell BusyBlock what distracts you.",
+                    [icon, label("Next you'll see Settings. Add the apps to hide and the websites to block; there are one-click suggestions for the usual suspects. Then start the bar and try opening one of them.")])
+    }
+
+    // MARK: - Navigation
+
+    private func show(_ i: Int) {
+        index = max(0, min(pages.count - 1, i))
+        pageHost.subviews.forEach { $0.removeFromSuperview() }
+        let p = pages[index]
+        pageHost.addSubview(p)
+        NSLayoutConstraint.activate([p.leadingAnchor.constraint(equalTo: pageHost.leadingAnchor), p.topAnchor.constraint(equalTo: pageHost.topAnchor),
+                                     p.widthAnchor.constraint(equalTo: pageHost.widthAnchor)])
+        for (k, d) in dots.arrangedSubviews.enumerated() { (d as? DotView)?.color = k == index ? .controlAccentColor : .quaternaryLabelColor }
+        backButton.isHidden = index == 0
+        nextButton.title = index == pages.count - 1 ? "Open Settings" : "Continue"
+        skipButton.isHidden = index == pages.count - 1
+        if index == 0 { refreshFind() }
+        if index == 3 {
+            if #available(macOS 13, *) { loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off }
+        }
+    }
+
+    @objc private func back() { show(index - 1) }
+    @objc private func next() { if index == pages.count - 1 { finish() } else { show(index + 1) } }
+    @objc private func skip() { finish() }
+
+    private func finish() {
+        var c = store.config
+        c.onboardingDone = true
+        store.save(c)
+        window?.close()
+        onFinish()
+    }
+}
+
+/// Small schematic pictures for the Safari steps, drawn rather than shipped as images.
+final class IllustrationView: NSView {
+    private let kind: OnboardingIllustrationKind
+    init(kind: Any) {
+        self.kind = OnboardingIllustrationKind(rawValue: String(describing: kind)) ?? .extensionsTab
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 8
+        layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.1).cgColor
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let b = bounds.insetBy(dx: 10, dy: 8)
+        let font = NSFont.systemFont(ofSize: 11)
+        let muted: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.secondaryLabelColor]
+        let strong: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .semibold), .foregroundColor: NSColor.labelColor]
+        func icon(_ name: String, at p: NSPoint, size: CGFloat = 14, tint: NSColor = .labelColor) {
+            guard let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: size, weight: .regular)) else { return }
+            let tinted = img.copy() as! NSImage
+            tinted.lockFocus(); tint.set(); NSRect(origin: .zero, size: tinted.size).fill(using: .sourceAtop); tinted.unlockFocus()
+            tinted.draw(at: p, from: .zero, operation: .sourceOver, fraction: 1)
+        }
+        func appIcon(at p: NSPoint, size: CGFloat = 16) {
+            let r = NSRect(x: p.x, y: p.y, width: size, height: size)
+            NSColor(calibratedRed: 0.9, green: 0.28, blue: 0.3, alpha: 1).setFill()
+            NSBezierPath(roundedRect: r, xRadius: size * 0.22, yRadius: size * 0.22).fill()
+            NSColor.white.setFill()
+            NSRect(x: r.minX + size * 0.22, y: r.midY - size * 0.08, width: size * 0.56, height: size * 0.16).fill()
+        }
+        switch kind {
+        case .extensionsTab:
+            icon("gearshape", at: NSPoint(x: b.minX, y: b.midY - 8), size: 14, tint: .secondaryLabelColor)
+            "Settings".draw(at: NSPoint(x: b.minX + 20, y: b.midY - 7), withAttributes: muted)
+            icon("puzzlepiece.extension", at: NSPoint(x: b.minX + 84, y: b.midY - 8), size: 14, tint: .controlAccentColor)
+            "Extensions".draw(at: NSPoint(x: b.minX + 104, y: b.midY - 7), withAttributes: strong)
+        case .tickRow:
+            let box = NSRect(x: b.minX, y: b.midY - 7, width: 14, height: 14)
+            NSColor.controlAccentColor.setFill()
+            NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3).fill()
+            icon("checkmark", at: NSPoint(x: box.minX + 2, y: box.minY + 1), size: 9, tint: .white)
+            appIcon(at: NSPoint(x: b.minX + 22, y: b.midY - 8))
+            "BusyBlock".draw(at: NSPoint(x: b.minX + 44, y: b.midY - 7), withAttributes: strong)
+        case .allowButton:
+            let btn = NSRect(x: b.minX, y: b.midY - 11, width: b.width, height: 22)
+            NSColor.controlAccentColor.setFill()
+            NSBezierPath(roundedRect: btn, xRadius: 6, yRadius: 6).fill()
+            let t = "Always Allow on Every Website"
+            let a: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10, weight: .medium), .foregroundColor: NSColor.white]
+            let sz = t.size(withAttributes: a)
+            t.draw(at: NSPoint(x: btn.midX - sz.width / 2, y: btn.midY - sz.height / 2), withAttributes: a)
+        case .toolbar:
+            let bar = NSRect(x: b.minX, y: b.midY - 10, width: b.width, height: 20)
+            NSColor.quaternaryLabelColor.withAlphaComponent(0.25).setFill()
+            NSBezierPath(roundedRect: bar, xRadius: 5, yRadius: 5).fill()
+            icon("chevron.left", at: NSPoint(x: bar.minX + 6, y: bar.midY - 6), size: 10, tint: .tertiaryLabelColor)
+            icon("chevron.right", at: NSPoint(x: bar.minX + 22, y: bar.midY - 6), size: 10, tint: .tertiaryLabelColor)
+            let field = NSRect(x: bar.minX + 40, y: bar.midY - 6, width: bar.width - 84, height: 12)
+            NSColor.windowBackgroundColor.setFill()
+            NSBezierPath(roundedRect: field, xRadius: 4, yRadius: 4).fill()
+            appIcon(at: NSPoint(x: bar.maxX - 34, y: bar.midY - 7), size: 14)
+            icon("puzzlepiece.extension", at: NSPoint(x: bar.maxX - 16, y: bar.midY - 6), size: 11, tint: .tertiaryLabelColor)
+        }
+    }
+}
+
+enum OnboardingIllustrationKind: String { case extensionsTab, tickRow, allowButton, toolbar }

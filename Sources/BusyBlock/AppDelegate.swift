@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastFrameRGB: Data?
     private var menuBar: MenuBarController!
     private var settings: SettingsWindowController?
+    private var onboarding: OnboardingWindowController?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -132,7 +133,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log("BusyBlock started, config at \(store.url.path)")
         // The settings window is the app's window: show it when a person
         // launched us (Finder, Launchpad, Spotlight), not when login did.
-        if CommandLine.arguments.contains("--settings") || openRequestedBeforeLaunch || !Self.launchedAsLoginItem() { showSettings() }
+        if CommandLine.arguments.contains("--onboarding") || !store.config.onboardingDone {
+            showOnboarding()
+        } else if CommandLine.arguments.contains("--settings") || openRequestedBeforeLaunch || !Self.launchedAsLoginItem() {
+            showSettings()
+        }
     }
 
     /// True when launchd started us as a login item (no one clicked anything).
@@ -173,12 +178,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    func showSettings() {
+    func showOnboarding() {
+        if onboarding == nil {
+            onboarding = OnboardingWindowController(store: store, controller: controller) { [weak self] in
+                self?.onboarding = nil
+                self?.showSettings(highlightSetup: true)
+            }
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        onboarding?.showWindow(nil)
+        onboarding?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    func showSettings(highlightSetup: Bool = false) {
         guard store != nil, controller != nil else { openRequestedBeforeLaunch = true; return }
+        if !store.config.onboardingDone && onboarding == nil && !highlightSetup { showOnboarding(); return }
         if settings == nil { settings = SettingsWindowController(store: store, controller: controller) }
         NSApp.activate(ignoringOtherApps: true)
         settings?.showWindow(nil)
         settings?.window?.makeKeyAndOrderFront(nil)
+        if highlightSetup { settings?.highlightSetup() }
     }
 
     private static let logURL = Config.defaultURL.deletingLastPathComponent().appendingPathComponent("busyblock.log")
