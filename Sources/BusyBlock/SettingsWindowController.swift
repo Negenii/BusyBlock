@@ -47,6 +47,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let domainField = NSTextField()
     private var domains: [String] = []
     private let pills = FlowView()
+    private var pillsHint = NSTextField(labelWithString: "")
+    private var appPillsHint = NSTextField(labelWithString: "")
     private let faviconCheck = NSButton(checkboxWithTitle: "Fetch site icons automatically (turn off for more privacy)", target: nil, action: nil)
 
     private let saveDebounce = PassthroughSubject<Void, Never>()
@@ -142,7 +144,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.addArrangedSubview(dropZone)
         dropZone.translatesAutoresizingMaskIntoConstraints = false
         dropZone.heightAnchor.constraint(equalToConstant: 64).isActive = true
-        let appPillsHint = NSTextField(labelWithString: "Installed apps people usually hide, one click to add:")
+        appPillsHint = NSTextField(labelWithString: "Installed apps people usually hide, one click to add:")
         appPillsHint.textColor = .secondaryLabelColor
         appPillsHint.font = .systemFont(ofSize: 11)
         root.addArrangedSubview(appPillsHint)
@@ -160,7 +162,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         let domainRow = NSStackView(views: [domainField, addBtn])
         domainRow.orientation = .horizontal
         root.addArrangedSubview(domainRow)
-        let pillsHint = NSTextField(labelWithString: "Usual suspects, one click to add:")
+        pillsHint = NSTextField(labelWithString: "Usual suspects, one click to add:")
         pillsHint.textColor = .secondaryLabelColor
         pillsHint.font = .systemFont(ofSize: 11)
         root.addArrangedSubview(pillsHint)
@@ -482,6 +484,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             b.toolTip = "Hide \(app.name) while the bar is busy"
             appPills.addSubview(b)
         }
+        let empty = appPills.subviews.isEmpty
+        appPills.isHidden = empty
+        appPillsHint.isHidden = empty
         appPills.needsLayout = true
         DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
@@ -506,6 +511,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             b.toolTip = "Block \(d) while the bar is busy"
             pills.addSubview(b)
         }
+        let empty = pills.subviews.isEmpty
+        pills.isHidden = empty
+        pillsHint.isHidden = empty
         pills.needsLayout = true
         DispatchQueue.main.async { [weak self] in self?.fitWindow() }
     }
