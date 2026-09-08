@@ -436,12 +436,67 @@ final class OnboardingWindowController: NSWindowController {
 
     // MARK: Page 5 — done
 
+    private let appPicks = FlowView()
+    private let sitePicks = FlowView()
+
     private func pageDone() -> NSView {
-        let icon = NSImageView(image: NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: nil)!)
-        icon.symbolConfiguration = .init(pointSize: 40, weight: .light)
-        icon.contentTintColor = .systemGreen
-        return page("That's it", "Last thing: tell BusyBlock what distracts you.",
-                    [icon, label("Next you'll see Settings. Add the apps to hide and the websites to block; there are one-click suggestions for the usual suspects. Then start the bar and try opening one of them.")])
+        appPicks.spacing = 6
+        sitePicks.spacing = 6
+        for v in [appPicks, sitePicks] { v.translatesAutoresizingMaskIntoConstraints = false; v.widthAnchor.constraint(equalToConstant: 536).isActive = true }
+        rebuildPicks()
+        return page("Pick what distracts you",
+                    "One click adds it to the block list; click again to remove. Everything else lives in Settings.",
+                    [label("Apps to hide", size: 13), appPicks, label("Websites to block", size: 13), sitePicks,
+                     label("Drop any other app onto the Settings window later, or type a website there.", muted: true)])
+    }
+
+    private func pill(_ title: String, id: String, icon: NSImage?, on: Bool, action: Selector) -> NSButton {
+        let b = NSButton(title: title, target: self, action: action)
+        b.bezelStyle = .badge
+        b.controlSize = .regular
+        b.font = .systemFont(ofSize: 12, weight: on ? .semibold : .regular)
+        b.identifier = .init(id)
+        if let icon { icon.size = NSSize(width: 16, height: 16); b.image = icon }
+        else { b.image = NSImage(systemSymbolName: on ? "checkmark.circle.fill" : "plus", accessibilityDescription: nil) }
+        b.imagePosition = .imageLeading
+        b.contentTintColor = on ? .controlAccentColor : nil
+        b.state = on ? .on : .off
+        return b
+    }
+
+    private func rebuildPicks() {
+        let ws = NSWorkspace.shared
+        let c = store.config
+        appPicks.subviews.forEach { $0.removeFromSuperview() }
+        for app in Suggestions.apps where ws.urlForApplication(withBundleIdentifier: app.id) != nil {
+            let icon = ws.urlForApplication(withBundleIdentifier: app.id).map { ws.icon(forFile: $0.path) }
+            let on = c.blockedApps.contains(app.id)
+            let b = pill(on ? "✓ " + app.name : app.name, id: app.id, icon: icon, on: on, action: #selector(toggleApp(_:)))
+            appPicks.addSubview(b)
+        }
+        sitePicks.subviews.forEach { $0.removeFromSuperview() }
+        for d in Suggestions.domains {
+            let on = c.blockedDomains.contains(d)
+            sitePicks.addSubview(pill(d, id: d, icon: nil, on: on, action: #selector(toggleSite(_:))))
+        }
+        appPicks.needsLayout = true
+        sitePicks.needsLayout = true
+    }
+
+    @objc private func toggleApp(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        var c = store.config
+        if let i = c.blockedApps.firstIndex(of: id) { c.blockedApps.remove(at: i) } else { c.blockedApps.append(id) }
+        store.save(c)
+        rebuildPicks()
+    }
+
+    @objc private func toggleSite(_ sender: NSButton) {
+        guard let d = sender.identifier?.rawValue else { return }
+        var c = store.config
+        if let i = c.blockedDomains.firstIndex(of: d) { c.blockedDomains.remove(at: i) } else { c.blockedDomains.append(d); c.blockedDomains.sort() }
+        store.save(c)
+        rebuildPicks()
     }
 
     // MARK: - Navigation
@@ -459,6 +514,7 @@ final class OnboardingWindowController: NSWindowController {
         nextButton.isEnabled = index != 0 || netResult == .granted
         skipButton.isHidden = index == pages.count - 1
         if index == 1 { refreshFind() }
+        if index == pages.count - 1 { rebuildPicks() }
         if index == 4 {
             if #available(macOS 13, *) { loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off }
         }
