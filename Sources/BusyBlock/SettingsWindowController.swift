@@ -95,7 +95,12 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.spacing = 14
         root.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
 
-        root.addArrangedSubview(statusCard())
+        // Status card and the bar preview side by side, as two separate things.
+        let topRow = NSStackView(views: [statusCard(), devicePanel])
+        topRow.orientation = .horizontal
+        topRow.alignment = .centerY
+        topRow.spacing = 14
+        root.addArrangedSubview(topRow)
 
         root.addArrangedSubview(header("BUSY Bar"))
         for check in [discoverCheck, restCheck, screenCheck, timerCheck] {
@@ -178,7 +183,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         statusTitle.font = .systemFont(ofSize: 15, weight: .semibold)
         statusDetail.font = .systemFont(ofSize: 12)
         statusDetail.textColor = .secondaryLabelColor
-        statusDetail.lineBreakMode = .byTruncatingTail
+        statusDetail.lineBreakMode = .byWordWrapping
+        statusDetail.maximumNumberOfLines = 3
         statusDetail.setContentCompressionResistancePriority(.init(1), for: .horizontal)
         statusTitle.setContentCompressionResistancePriority(.init(2), for: .horizontal)
         spinner.style = .spinning
@@ -189,7 +195,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         text.orientation = .vertical
         text.alignment = .leading
         text.spacing = 3
-        // Small live preview of the bar on the right, like busybar-manager's, only smaller.
+        // Small live preview of the bar, like busybar-manager's, only smaller; sits next to the card.
         devicePanel.translatesAutoresizingMaskIntoConstraints = false
         devicePanel.widthAnchor.constraint(equalToConstant: 240).isActive = true
         devicePanel.heightAnchor.constraint(equalToConstant: 240 * 248 / 768).isActive = true
@@ -198,12 +204,14 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         let lead = NSStackView(views: [statusDot, spinner])
         lead.orientation = .horizontal
         lead.spacing = 6
-        let h = NSStackView(views: [lead, text, devicePanel])
+        let h = NSStackView(views: [lead, text])
         h.orientation = .horizontal
         h.alignment = .centerY
         h.spacing = 12
-        h.edgeInsets = NSEdgeInsets(top: 12, left: 16, bottom: 12, right: 12)
+        h.edgeInsets = NSEdgeInsets(top: 12, left: 16, bottom: 12, right: 14)
         h.translatesAutoresizingMaskIntoConstraints = false
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.widthAnchor.constraint(equalToConstant: 592 - 240 - 14).isActive = true
         card.addSubview(h)
         NSLayoutConstraint.activate([
             h.leadingAnchor.constraint(equalTo: card.leadingAnchor), h.trailingAnchor.constraint(equalTo: card.trailingAnchor),
