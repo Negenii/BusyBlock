@@ -387,12 +387,11 @@ final class OnboardingWindowController: NSWindowController {
             return r
         }
         return page("Hide distracting apps",
-                    "While the bar is busy, the apps on your list vanish the moment they come to the front. They hide, they don't quit.",
+                    "Why BusyBlock does this, in my own words.",
                     [sceneBox,
-                     point("checkmark.circle", "Nothing closes. Unsaved work stays put."),
-                     point("clock.arrow.circlepath", "Timer ends, the apps are back where they were."),
-                     point("safari", "Websites show a block page with the bar's screen on it."),
-                     point("lock", "Quit BusyBlock mid-session? The browser still blocks until the timer runs out.")])
+                     label("When I sit down to work, I mean it. Then, an hour later, I notice I've opened a chat without even deciding to and stayed there."),
+                     label("So while the bar is busy, the apps on my list simply vanish the moment they come to the front. No willpower involved: if I slip, there's nothing to slip into."),
+                     label("They hide, they don't quit. Nothing closes, and when the timer ends they're back where they were. Websites work the same way: a block page with the bar's screen instead of the site.", muted: true)])
     }
 
     // MARK: Page 4 — startup and icons
