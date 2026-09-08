@@ -9,6 +9,7 @@ final class ConfigStore: ObservableObject {
     let url: URL
     private var dirSource: DispatchSourceFileSystemObject?
     private var dirFD: Int32 = -1
+    private var fileSource: DispatchSourceFileSystemObject?
     private var reloadWork: DispatchWorkItem?
     private let log: (String) -> Void
 
@@ -17,6 +18,7 @@ final class ConfigStore: ObservableObject {
         self.log = log
         self.config = Config.loadOrCreate(at: url)
         watchDirectory()
+        watchFile()
     }
 
     func save(_ new: Config) {
@@ -26,9 +28,31 @@ final class ConfigStore: ObservableObject {
     }
 
     private func reloadFromDisk() {
+        watchFile()   // the file may have been replaced; follow the new inode
         guard let fresh = try? Config.load(from: url), fresh != config else { return }
         log("config reloaded from disk")
         config = fresh
+    }
+
+    private func scheduleReload() {
+        reloadWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.reloadFromDisk() }
+        reloadWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+    }
+
+    /// In-place edits (most editors, scripts) only change the file itself, so
+    /// watch its descriptor too; renames/replacements are caught by the directory watch.
+    private func watchFile() {
+        fileSource?.cancel()
+        fileSource = nil
+        let fd = open(url.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .extend, .delete, .rename], queue: .main)
+        src.setEventHandler { [weak self] in self?.scheduleReload() }
+        src.setCancelHandler { close(fd) }
+        src.resume()
+        fileSource = src
     }
 
     /// Atomic saves replace the file, so watch the directory instead of the file.
@@ -38,13 +62,7 @@ final class ConfigStore: ObservableObject {
         dirFD = open(dir.path, O_EVTONLY)
         guard dirFD >= 0 else { return }
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: dirFD, eventMask: [.write, .rename, .delete], queue: .main)
-        src.setEventHandler { [weak self] in
-            guard let self else { return }
-            self.reloadWork?.cancel()
-            let work = DispatchWorkItem { [weak self] in self?.reloadFromDisk() }
-            self.reloadWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
-        }
+        src.setEventHandler { [weak self] in self?.scheduleReload() }
         src.setCancelHandler { [fd = dirFD] in close(fd) }
         src.resume()
         dirSource = src
