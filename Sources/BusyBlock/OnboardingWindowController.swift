@@ -19,6 +19,7 @@ final class OnboardingWindowController: NSWindowController {
     private let netStatus = NSTextField(wrappingLabelWithString: "")
     private let netDeniedBox = NSStackView()
     private var netResult: LocalNetworkAccess.Result?
+    private let faviconCheck = NSButton(checkboxWithTitle: "Fetch website icons automatically", target: nil, action: nil)
 
     private var pages: [NSView] = []
     private var index = 0
@@ -171,9 +172,20 @@ final class OnboardingWindowController: NSWindowController {
         btns.orientation = .horizontal
         netDeniedBox.addArrangedSubview(btns)
         netDeniedBox.isHidden = true
+        faviconCheck.state = store.config.faviconFallback ? .on : .off
+        faviconCheck.target = self
+        faviconCheck.action = #selector(toggleFavicons)
+        let favNote = label("Icons come from the site itself, or from DuckDuckGo's icon service when a site has none. Turn this off if you'd rather not have domain names sent there.", muted: true)
+        favNote.font = .systemFont(ofSize: 11)
+        let favBox = NSStackView(views: [faviconCheck, favNote])
+        favBox.orientation = .vertical
+        favBox.alignment = .leading
+        favBox.spacing = 4
+        favBox.translatesAutoresizingMaskIntoConstraints = false
+        favBox.edgeInsets = NSEdgeInsets(top: 18, left: 0, bottom: 0, right: 0)
         return page("One permission first",
                     "To find your BUSY Bar, BusyBlock talks to devices on your local network: over the USB link and over Wi-Fi. macOS asks you once whether that's okay.",
-                    [row, netStatus, netDeniedBox])
+                    [row, netStatus, netDeniedBox, favBox])
     }
 
     @objc private func askNetwork() {
@@ -203,6 +215,13 @@ final class OnboardingWindowController: NSWindowController {
                 netButton.title = "Check again"
             }
         }
+    }
+
+    @objc private func toggleFavicons() {
+        var c = store.config
+        c.faviconFallback = faviconCheck.state == .on
+        store.save(c)
+        FaviconLoader.shared.allowThirdParty = c.faviconFallback
     }
 
     @objc private func openPrivacySettings() {
@@ -440,8 +459,8 @@ final class OnboardingWindowController: NSWindowController {
     private let sitePicks = FlowView()
 
     private func pageDone() -> NSView {
-        appPicks.spacing = 6
-        sitePicks.spacing = 6
+        appPicks.spacing = 8
+        sitePicks.spacing = 8
         for v in [appPicks, sitePicks] { v.translatesAutoresizingMaskIntoConstraints = false; v.widthAnchor.constraint(equalToConstant: 536).isActive = true }
         rebuildPicks()
         return page("Pick what distracts you",
@@ -450,49 +469,40 @@ final class OnboardingWindowController: NSWindowController {
                      label("Drop any other app onto the Settings window later, or type a website there.", muted: true)])
     }
 
-    private func pill(_ title: String, id: String, icon: NSImage?, on: Bool, action: Selector) -> NSButton {
-        let b = NSButton(title: title, target: self, action: action)
-        b.bezelStyle = .badge
-        b.controlSize = .regular
-        b.font = .systemFont(ofSize: 12, weight: on ? .semibold : .regular)
-        b.identifier = .init(id)
-        if let icon { icon.size = NSSize(width: 16, height: 16); b.image = icon }
-        else { b.image = NSImage(systemSymbolName: on ? "checkmark.circle.fill" : "plus", accessibilityDescription: nil) }
-        b.imagePosition = .imageLeading
-        b.contentTintColor = on ? .controlAccentColor : nil
-        b.state = on ? .on : .off
-        return b
-    }
-
     private func rebuildPicks() {
         let ws = NSWorkspace.shared
         let c = store.config
         appPicks.subviews.forEach { $0.removeFromSuperview() }
-        for app in Suggestions.apps where ws.urlForApplication(withBundleIdentifier: app.id) != nil {
-            let icon = ws.urlForApplication(withBundleIdentifier: app.id).map { ws.icon(forFile: $0.path) }
-            let on = c.blockedApps.contains(app.id)
-            let b = pill(on ? "✓ " + app.name : app.name, id: app.id, icon: icon, on: on, action: #selector(toggleApp(_:)))
-            appPicks.addSubview(b)
+        for app in Suggestions.apps {
+            guard let url = ws.urlForApplication(withBundleIdentifier: app.id) else { continue }
+            let chip = PickChipView(title: app.name, on: c.blockedApps.contains(app.id))
+            chip.icon.image = ws.icon(forFile: url.path)
+            chip.onTap = { [weak self] in self?.toggleApp(app.id) }
+            appPicks.addSubview(chip)
         }
         sitePicks.subviews.forEach { $0.removeFromSuperview() }
         for d in Suggestions.domains {
-            let on = c.blockedDomains.contains(d)
-            sitePicks.addSubview(pill(d, id: d, icon: nil, on: on, action: #selector(toggleSite(_:))))
+            let chip = PickChipView(title: d, on: c.blockedDomains.contains(d))
+            chip.icon.image = NSImage(systemSymbolName: "globe", accessibilityDescription: nil)
+            chip.icon.contentTintColor = .secondaryLabelColor
+            FaviconLoader.shared.image(for: d) { [weak chip] img in
+                if let img { chip?.icon.image = img; chip?.icon.contentTintColor = nil }
+            }
+            chip.onTap = { [weak self] in self?.toggleSite(d) }
+            sitePicks.addSubview(chip)
         }
         appPicks.needsLayout = true
         sitePicks.needsLayout = true
     }
 
-    @objc private func toggleApp(_ sender: NSButton) {
-        guard let id = sender.identifier?.rawValue else { return }
+    private func toggleApp(_ id: String) {
         var c = store.config
         if let i = c.blockedApps.firstIndex(of: id) { c.blockedApps.remove(at: i) } else { c.blockedApps.append(id) }
         store.save(c)
         rebuildPicks()
     }
 
-    @objc private func toggleSite(_ sender: NSButton) {
-        guard let d = sender.identifier?.rawValue else { return }
+    private func toggleSite(_ d: String) {
         var c = store.config
         if let i = c.blockedDomains.firstIndex(of: d) { c.blockedDomains.remove(at: i) } else { c.blockedDomains.append(d); c.blockedDomains.sort() }
         store.save(c)
@@ -600,6 +610,44 @@ final class IconMarqueeView: NSView {
             }
         }
     }
+}
+
+/// Same pill as the Settings chips (icon + name), but a toggle: accent when on.
+final class PickChipView: NSView {
+    let icon = NSImageView()
+    var onTap: (() -> Void)?
+    private let check = NSImageView()
+
+    init(title: String, on: Bool) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 18
+        layer?.borderWidth = 1
+        layer?.backgroundColor = (on ? NSColor.controlAccentColor.withAlphaComponent(0.18) : NSColor.quaternaryLabelColor.withAlphaComponent(0.12)).cgColor
+        layer?.borderColor = (on ? NSColor.controlAccentColor : NSColor.separatorColor).cgColor
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 14, weight: on ? .medium : .regular)
+        check.image = NSImage(systemSymbolName: on ? "checkmark.circle.fill" : "plus.circle", accessibilityDescription: nil)
+        check.contentTintColor = on ? .controlAccentColor : .tertiaryLabelColor
+        check.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+        let h = NSStackView(views: [icon, label, check])
+        h.orientation = .horizontal
+        h.alignment = .centerY
+        h.spacing = 7
+        h.edgeInsets = NSEdgeInsets(top: 7, left: 10, bottom: 7, right: 10)
+        h.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(h)
+        NSLayoutConstraint.activate([
+            h.leadingAnchor.constraint(equalTo: leadingAnchor), h.trailingAnchor.constraint(equalTo: trailingAnchor),
+            h.topAnchor.constraint(equalTo: topAnchor), h.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    override func mouseUp(with event: NSEvent) { onTap?() }
 }
 
 /// Round accent badge with a crossed-out eye, for "this app gets hidden".
