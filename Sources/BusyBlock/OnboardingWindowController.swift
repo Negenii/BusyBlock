@@ -33,6 +33,7 @@ final class OnboardingWindowController: NSWindowController {
     private let findTitle = NSTextField(labelWithString: "")
     private let findText = NSTextField(wrappingLabelWithString: "")
     private let findPanel = DevicePanelView()
+    private let findIcon = NSImageView()
     private let hostField = NSTextField()
     private let tokenField = NSTextField()
     private let manualBox = NSStackView()
@@ -225,7 +226,10 @@ final class OnboardingWindowController: NSWindowController {
         findPanel.translatesAutoresizingMaskIntoConstraints = false
         findPanel.widthAnchor.constraint(equalToConstant: 380).isActive = true
         findPanel.heightAnchor.constraint(equalToConstant: 380 * 248 / 768).isActive = true
-        let head = NSStackView(views: [findSpinner, findTitle])
+        findIcon.contentTintColor = .secondaryLabelColor
+        findIcon.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+        findIcon.isHidden = true
+        let head = NSStackView(views: [findSpinner, findIcon, findTitle])
         head.orientation = .horizontal
         head.spacing = 8
         let centre = NSStackView(views: [findPanel, head, findText])
@@ -261,14 +265,17 @@ final class OnboardingWindowController: NSWindowController {
         if searching { findSpinner.startAnimation(nil) } else { findSpinner.stopAnimation(nil) }
         findPanel.dimmed = !s.barConnected
         manualBox.isHidden = true
+        findIcon.isHidden = true
         if controller.needsToken {
             findTitle.stringValue = "Found it, but it wants an API token"
             findText.stringValue = "The bar has access protection on. Create a token in its settings and paste it here."
             manualBox.isHidden = false
         } else if s.barConnected {
-            findTitle.stringValue = "Found your BUSY Bar"
+            findTitle.stringValue = "Found your device"
             let usb = s.host == BarLocator.usbHost
-            findText.stringValue = usb ? "Connected over USB. Let's set it up." : "Connected over Wi-Fi (\(s.host)). Let's set it up."
+            findIcon.image = NSImage(systemSymbolName: usb ? "cable.connector" : "wifi", accessibilityDescription: usb ? "USB" : "Wi-Fi")
+            findIcon.isHidden = false
+            findText.stringValue = usb ? "Connected over USB." : "Connected over Wi-Fi (\(s.host))."
         } else if searching {
             findTitle.stringValue = "Looking for the bar…"
             findText.stringValue = "Checking USB, busybar.local and Bonjour."
