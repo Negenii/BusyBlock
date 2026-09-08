@@ -404,8 +404,8 @@ final class OnboardingWindowController: NSWindowController {
             r.spacing = 8
             return r
         }
-        return page("Apps hide, they don't quit",
-                    "While the bar is busy, the apps on your list vanish the moment they come to the front.",
+        return page("Hide distracting apps",
+                    "While the bar is busy, the apps on your list vanish the moment they come to the front. They hide, they don't quit.",
                     [sceneBox,
                      point("checkmark.circle", "Nothing closes. Unsaved work stays put."),
                      point("clock.arrow.circlepath", "Timer ends, the apps are back where they were."),
