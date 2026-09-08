@@ -275,7 +275,7 @@ final class OnboardingWindowController: NSWindowController {
             let usb = s.host == BarLocator.usbHost
             findIcon.image = NSImage(systemSymbolName: usb ? "cable.connector" : "wifi", accessibilityDescription: usb ? "USB" : "Wi-Fi")
             findIcon.isHidden = false
-            findText.stringValue = usb ? "Connected over USB." : "Connected over Wi-Fi (\(s.host))."
+            findText.stringValue = ""
         } else if searching {
             findTitle.stringValue = "Looking for the bar…"
             findText.stringValue = "Checking USB, busybar.local and Bonjour."
