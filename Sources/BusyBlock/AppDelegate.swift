@@ -36,7 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.blocker.blockedBundleIDs = Set(cfg.blockedApps)
             self.controller.reload(config: cfg)
-            self.stream.update(host: cfg.barHost, token: cfg.barToken)
+            // Follow the host the controller is actually on (may be a discovered one).
+            self.stream.update(host: self.controller.activeHost, token: cfg.barToken)
             self.blocker.sweep()
         }.store(in: &cancellables)
 

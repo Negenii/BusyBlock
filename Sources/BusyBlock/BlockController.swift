@@ -61,6 +61,9 @@ final class BlockController: ObservableObject {
             needsToken = false
             lastDiscovery = .distantPast
             onHostChange?(new.barHost)
+        } else {
+            // Unrelated setting changed: stay on whatever host discovery found.
+            client.use(host: activeHost)
         }
         // Re-evaluate with the new lists right away.
         var s = state
@@ -156,14 +159,12 @@ final class BlockController: ObservableObject {
         searchFailed = (found == nil)
         guard let found else { return }
         needsToken = found.needsToken
+        foundVia = found.via
+        client.use(host: found.host)   // always, even if it's the host we already had
+        failures = 0
         if found.host != activeHost {
             activeHost = found.host
-            foundVia = found.via
-            client.use(host: found.host)
-            failures = 0
             onHostChange?(found.host)
-        } else {
-            foundVia = found.via
         }
     }
 
