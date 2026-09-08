@@ -182,12 +182,16 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         card.layer?.cornerRadius = 12
         card.layer?.backgroundColor = NSColor.quaternaryLabelColor.withAlphaComponent(0.08).cgColor
         statusTitle.font = .systemFont(ofSize: 15, weight: .semibold)
+        statusTitle.lineBreakMode = .byWordWrapping
+        statusTitle.maximumNumberOfLines = 2
         statusDetail.font = .systemFont(ofSize: 12)
         statusDetail.textColor = .secondaryLabelColor
         statusDetail.lineBreakMode = .byWordWrapping
         statusDetail.maximumNumberOfLines = 3
         statusDetail.setContentCompressionResistancePriority(.init(1), for: .horizontal)
         statusTitle.setContentCompressionResistancePriority(.init(2), for: .horizontal)
+        statusTitle.preferredMaxLayoutWidth = 592 - 240 - 14 - 16 - 16 - 12 - 14
+        statusDetail.preferredMaxLayoutWidth = 592 - 240 - 14 - 16 - 16 - 12 - 14
         spinner.style = .spinning
         spinner.controlSize = .small
         spinner.isDisplayedWhenStopped = false
@@ -202,9 +206,18 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         devicePanel.heightAnchor.constraint(equalToConstant: 240 * 248 / 768).isActive = true
         text.setContentHuggingPriority(.defaultLow, for: .horizontal)
         text.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let lead = NSStackView(views: [statusDot, spinner])
-        lead.orientation = .horizontal
-        lead.spacing = 6
+        // Dot and spinner share one 16×16 slot; only one of them shows at a time.
+        let lead = NSView()
+        lead.translatesAutoresizingMaskIntoConstraints = false
+        lead.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        lead.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        statusDot.translatesAutoresizingMaskIntoConstraints = false
+        lead.addSubview(statusDot)
+        lead.addSubview(spinner)
+        NSLayoutConstraint.activate([
+            statusDot.centerXAnchor.constraint(equalTo: lead.centerXAnchor), statusDot.centerYAnchor.constraint(equalTo: lead.centerYAnchor),
+            spinner.centerXAnchor.constraint(equalTo: lead.centerXAnchor), spinner.centerYAnchor.constraint(equalTo: lead.centerYAnchor),
+        ])
         let h = NSStackView(views: [lead, text])
         h.orientation = .horizontal
         h.alignment = .centerY
