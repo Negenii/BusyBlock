@@ -41,6 +41,12 @@
     siteBtn.disabled = !state;
   }
 
+  document.getElementById("openApp").addEventListener("click", () => {
+    fetch("http://127.0.0.1:" + currentPort + "/open", { method: "POST" })
+      .then(() => { window.close(); })
+      .catch(() => { document.getElementById("openHint").textContent = "BusyBlock isn't running — open it from Applications."; });
+  });
+
   siteBtn.addEventListener("click", () => {
     if (listed()) return;
     const body = { add: siteHost };

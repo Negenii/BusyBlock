@@ -12,6 +12,8 @@ final class LocalServer {
     var initialEvents: () -> [(String, Data)] = { [] }
     /// `POST /domains` with {"add": host} or {"remove": host}. Returns the new state JSON.
     var onDomainChange: ((_ add: String?, _ remove: String?) -> Data)?
+    /// `POST /open` from an extension popup: bring the settings window up.
+    var onOpenRequest: (() -> Void)?
     /// `GET /favicon?host=x` → PNG bytes (nil = 404). Async: the loader may hit the network.
     var faviconProvider: ((_ host: String, _ done: @escaping (Data?) -> Void) -> Void)?
     private var listener: NWListener?
@@ -185,7 +187,9 @@ final class LocalServer {
         var body = Data()
         if method == "OPTIONS" {
             // Preflight: only extension pages get to send a POST.
-            status = (path == "/domains" && !fromExtension) ? "403 Forbidden" : "204 No Content"
+            status = ((path == "/domains" || path == "/open") && !fromExtension) ? "403 Forbidden" : "204 No Content"
+        } else if method == "POST" && path == "/open" {
+            if fromExtension { onOpenRequest?(); body = Data(#"{"ok":true}"#.utf8) } else { status = "403 Forbidden" }
         } else if method == "POST" && path == "/log" {
             // Diagnostics from the extension worker (extension origins only).
             if fromExtension, let obj = try? JSONSerialization.jsonObject(with: reqBody) as? [String: Any] {

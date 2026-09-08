@@ -105,9 +105,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller.start()
         stream.start()
-        menuBar = MenuBarController(controller: controller, store: store) { [weak self] in self?.showSettings() }
+        server.onOpenRequest = { DispatchQueue.main.async { [weak self] in self?.showSettings() } }
+        applyMenuBarSetting()
+        store.$config.map(\.showMenuBarIcon).removeDuplicates().dropFirst().receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.applyMenuBarSetting() }.store(in: &cancellables)
         log("BusyBlock started, config at \(store.url.path)")
-        if CommandLine.arguments.contains("--settings") { showSettings() }
+        // The settings window is the app's window: show it when a person
+        // launched us (Finder, Launchpad, Spotlight), not when login did.
+        if CommandLine.arguments.contains("--settings") || !Self.launchedAsLoginItem() { showSettings() }
+    }
+
+    /// True when launchd started us as a login item (no one clicked anything).
+    private static func launchedAsLoginItem() -> Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventClass == kCoreEventClass, event.eventID == kAEOpenApplication else { return false }
+        return event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    }
+
+    private func applyMenuBarSetting() {
+        if store.config.showMenuBarIcon {
+            if menuBar == nil { menuBar = MenuBarController(controller: controller, store: store) { [weak self] in self?.showSettings() } }
+        } else {
+            menuBar = nil
+        }
+    }
+
+    /// Dock/Finder click on a running app.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        showSettings()
+        return true
     }
 
     func showSettings() {

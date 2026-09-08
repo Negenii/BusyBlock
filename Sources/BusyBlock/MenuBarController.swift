@@ -32,6 +32,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refresh()
     }
 
+    deinit {
+        tick?.invalidate()
+        NSStatusBar.system.removeStatusItem(item)
+    }
+
     private func buildMenu() {
         menu.delegate = self
         statusItem.isEnabled = false
