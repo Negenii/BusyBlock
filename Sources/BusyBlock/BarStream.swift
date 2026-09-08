@@ -110,15 +110,20 @@ final class BarStream {
         report(true, nil)
 
         var lastPing = Date()
+        var lastData = Date()
         while alive(gen) {
             // Server pings every 10 s; our own ping every 5 s doubles as keepalive.
             if Date().timeIntervalSince(lastPing) > 5 {
                 try send(sock, .ping, "")
                 lastPing = Date()
             }
+            // A yanked USB cable doesn't close the socket, it just goes quiet.
+            // The bar answers pings within milliseconds, so 12 s of nothing is dead.
+            if Date().timeIntervalSince(lastData) > 12 { throw StreamError.silent }
             let chunk: Data
-            do { chunk = try sock.read(timeout: 5) } catch RawSocket.Error.timeout { continue }
+            do { chunk = try sock.read(timeout: 2) } catch RawSocket.Error.timeout { continue }
             if chunk.isEmpty { throw RawSocket.Error.closed }
+            lastData = Date()
             buffer.append(chunk)
             while let (frame, used) = try WebSocketCodec.decode(buffer) {
                 buffer.removeFirst(used)
@@ -147,13 +152,14 @@ final class BarStream {
     }
 
     enum StreamError: Error, CustomStringConvertible {
-        case handshake(String), closedByPeer, resourceLimit, overflow
+        case handshake(String), closedByPeer, resourceLimit, overflow, silent
         var description: String {
             switch self {
             case .handshake(let s): return "ws handshake: \(s)"
             case .closedByPeer: return "closed by bar"
             case .resourceLimit: return "bar has no free stream slots (max 4 clients)"
             case .overflow: return "stream buffer overflow"
+            case .silent: return "no data for 12 s"
             }
         }
     }

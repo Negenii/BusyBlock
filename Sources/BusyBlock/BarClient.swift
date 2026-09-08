@@ -7,7 +7,7 @@ final class BarClient {
     private(set) var host: String
     private var token: String?
     private let timeout: TimeInterval = 3
-    /// Shorter while nothing has answered yet, so discovery starts sooner.
+    /// Shorter while nothing has answered yet (or the link just dropped), so discovery starts sooner.
     var quick = true
 
     enum ClientError: Error { case badResponse }

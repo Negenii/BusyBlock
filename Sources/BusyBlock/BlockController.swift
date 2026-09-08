@@ -73,6 +73,16 @@ final class BlockController: ObservableObject {
         Task { await pollOnce() }
     }
 
+    /// The link probably just died (stream went silent, a network interface
+    /// changed): check now with short timeouts and go straight to discovery
+    /// if the bar doesn't answer, instead of waiting out three slow polls.
+    func linkSuspect() {
+        client.quick = true
+        lastDiscovery = .distantPast
+        failures = max(failures, maxFailures - 1)
+        Task { await pollOnce() }
+    }
+
     /// Bar clock reading (ms) from the websocket envelope or /api/time.
     func calibrate(barMs: Int, receivedAt: Date, resolution: TimeInterval = 0.001) {
         estimator.observeBarClock(barMs: barMs, macNow: receivedAt, resolution: resolution)

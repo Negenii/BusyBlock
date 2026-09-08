@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Network
 import BusyBlockCore
 
 @MainActor
@@ -10,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var server: LocalServer!
     private var stream: BarStream!
     private var lastFrameJSON: Data?
+    private let pathMonitor = NWPathMonitor()
+    private var pathDebounce: DispatchWorkItem?
     private var lastFrameRGB: Data?
     private var menuBar: MenuBarController!
     private var settings: SettingsWindowController?
@@ -49,10 +52,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         stream.onStatus = { [weak self] connected, error in
             guard let self else { return }
-            if self.controller.streamConnected != connected {
+            let wasConnected = self.controller.streamConnected
+            if wasConnected != connected {
                 self.log("bar stream \(connected ? "up" : "down")\(error.map { ": \($0)" } ?? "")")
             }
             self.controller.streamConnected = connected
+            if wasConnected && !connected { self.controller.linkSuspect() }
             LiveFrames.shared.connected = connected
         }
         stream.onMessage = { [weak self] msg, received in
@@ -108,6 +113,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         controller.start()
         stream.start()
+        // Interfaces coming and going (USB cable, Wi-Fi) are the usual reason
+        // the bar moves; re-check right away instead of waiting for timeouts.
+        pathMonitor.pathUpdateHandler = { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.pathDebounce?.cancel()
+                let work = DispatchWorkItem { [weak self] in self?.log("network path changed"); self?.controller.linkSuspect() }
+                self.pathDebounce = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: work)
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "me.negenii.BusyBlock.path"))
         server.onOpenRequest = { DispatchQueue.main.async { [weak self] in self?.showSettings() } }
         applyMenuBarSetting()
         store.$config.map(\.showMenuBarIcon).removeDuplicates().dropFirst().receive(on: DispatchQueue.main)
