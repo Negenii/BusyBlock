@@ -49,6 +49,12 @@ targets:
       - path: extension/brand
         type: folder
         buildPhase: resources
+    # App extensions must be sandboxed or pluginkit ignores them (the app itself isn't, yet).
+    entitlements:
+      path: Sources/SafariExtension/BusyBlock Extension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
     info:
       path: Sources/SafariExtension/Info.plist
       properties:
