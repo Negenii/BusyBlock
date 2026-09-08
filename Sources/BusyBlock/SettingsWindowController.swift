@@ -305,7 +305,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off
             loginCheck.isEnabled = Bundle.main.bundleURL.pathExtension == "app"
         }
-        if apps != c.blockedApps { apps = c.blockedApps; rebuildAppChips() }
+        apps = c.blockedApps
+        rebuildAppChips()
         rebuildAppPills()
         if domains != c.blockedDomains { domains = c.blockedDomains; rebuildChips() }
         faviconCheck.state = c.faviconFallback ? .on : .off
