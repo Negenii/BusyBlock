@@ -93,9 +93,14 @@ test("applyRules blocks the main frame in Safari (address-bar loads stall on a r
 
 test("formatRemaining and stateURL", () => {
   assert.equal(formatRemaining(0), "");
-  assert.equal(formatRemaining(1000 * 65 + 1000, 1000), "1:05");
-  assert.equal(formatRemaining(59_400, 1000), "0:59");
-  assert.equal(formatRemaining(59_000, 1000), "0:58");
+  assert.equal(formatRemaining(1000 * 65 + 1000, 1000), "01:05");
+  assert.equal(formatRemaining(59_400, 1000), "00:59");
+  assert.equal(formatRemaining(59_000, 1000), "00:58");
+  // Over an hour the bar switches to hours, and so do we.
+  assert.equal(formatRemaining(1000 + 3600_000, 1000), "1:00:00");
+  assert.equal(formatRemaining(1000 + 5400_000, 1000), "1:30:00");
+  assert.equal(formatRemaining(1000 + 3599_000, 1000), "59:59");
+  assert.equal(formatRemaining(1000 + 36_000_000, 1000), "10:00:00");
   assert.equal(stateURL(), "http://127.0.0.1:48321/state");
   assert.equal(stateURL(5000), "http://127.0.0.1:5000/state");
 });

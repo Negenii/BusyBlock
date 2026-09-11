@@ -2,6 +2,7 @@
 // Fake BUSY Bar for local testing: serves /api/busy/snapshot like the firmware.
 //   node scripts/fake-bar.js [port]            (default 8090)
 //   curl -X PUT localhost:8090/scenario -d '{"name":"simple"}'
+//   scenarios: idle | simple | long | paused | infinite | interval-work | interval-rest
 // Scenarios: idle | simple | interval-work | interval-rest | paused | infinite
 const http = require("node:http");
 const port = Number(process.argv[2] || 8090);
@@ -24,6 +25,8 @@ function snapshot() {
     case "simple": return { type: "SIMPLE", card_id, time_left_ms: secs(WORK - elapsed), is_paused: false };
     case "paused": return { type: "SIMPLE", card_id, time_left_ms: 10 * 60 * 1000, is_paused: true };
     case "infinite": return { type: "INFINITE", card_id, is_paused: false };
+    // Over an hour, where the bar's own screen switches to h:mm:ss.
+    case "long": return { type: "SIMPLE", card_id, time_left_ms: secs(90 * 60 * 1000 - elapsed), is_paused: false };
     case "interval-work": return { type: "INTERVAL", card_id, current_interval: 0, current_interval_time_total_ms: WORK, current_interval_time_left_ms: secs(WORK - elapsed), is_paused: false, interval_settings };
     case "interval-rest": return { type: "INTERVAL", card_id, current_interval: 1, current_interval_time_total_ms: REST, current_interval_time_left_ms: secs(REST - elapsed), is_paused: false, interval_settings };
     default: return { type: "NOT_STARTED" };

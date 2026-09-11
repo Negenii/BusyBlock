@@ -4,6 +4,10 @@ Notable changes, newest first. Versions follow [semantic versioning](https://sem
 
 ## [Unreleased]
 
+- The countdown is written the way the bar writes it: `MM:SS` under an hour,
+  `H:MM:SS` over it, where it used to read `90:00`. Menu-bar digits are
+  monospaced, so the width no longer shifts every second.
+
 ## [0.1.0]
 
 First public release.

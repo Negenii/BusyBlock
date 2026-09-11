@@ -60,9 +60,12 @@ const LED_FONT = {
 function clockFrame(text, w, h) {
   w = w || 72; h = h || 16;
   const rgb = new Uint8Array(w * h * 3);
-  const scale = 2, gap = 2;
   const glyphs = Array.from(text).map((c) => LED_FONT[c] || LED_FONT["-"]);
-  const width = glyphs.length * 5 * scale + (glyphs.length - 1) * gap;
+  // Double size when it fits, single when it doesn't: H:MM:SS is seven glyphs
+  // and would run off the end of the panel at double.
+  const span = (k) => glyphs.length * 5 * k + (glyphs.length - 1) * k;
+  const scale = span(2) <= w ? 2 : 1, gap = scale;
+  const width = span(scale);
   let x0 = Math.max(0, Math.floor((w - width) / 2));
   const y0 = Math.floor((h - 7 * scale) / 2);
   for (const g of glyphs) {

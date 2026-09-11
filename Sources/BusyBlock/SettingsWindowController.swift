@@ -491,10 +491,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         }
     }
 
-    private static func remaining(_ end: Date) -> String {
-        let secs = max(0, Int((end.timeIntervalSinceNow - 0.05).rounded(.up)))
-        return String(format: "%d:%02d", secs / 60, secs % 60)
-    }
+    private static func remaining(_ end: Date) -> String { Countdown.text(until: end) }
 
     // MARK: - Actions
 

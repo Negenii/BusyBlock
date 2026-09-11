@@ -331,5 +331,22 @@ do {
     check(incomplete == nil, "incomplete frame returns nil")
 } catch { failures += 1; print("FAIL: websocket \(error)") }
 
+// Countdown text: the bar's own shape, MM:SS under an hour and H:MM:SS over it.
+check(Countdown.text(seconds: 0) == "00:00", "countdown zero")
+check(Countdown.text(seconds: 9) == "00:09", "countdown pads seconds")
+check(Countdown.text(seconds: 65) == "01:05", "countdown pads minutes")
+check(Countdown.text(seconds: 3599) == "59:59", "countdown just under an hour")
+check(Countdown.text(seconds: 3600) == "1:00:00", "countdown at an hour")
+check(Countdown.text(seconds: 5400) == "1:30:00", "countdown 90 minutes reads as 1:30:00")
+check(Countdown.text(seconds: 36000) == "10:00:00", "countdown two-digit hours")
+check(Countdown.text(seconds: -5) == "00:00", "countdown never goes negative")
+check(Countdown.text(seconds: 60).count == Countdown.text(seconds: 599).count, "width holds under an hour")
+do {
+    let now = Date()
+    // The bar rounds up: 58.4 s left reads as 59.
+    check(Countdown.secondsLeft(until: now.addingTimeInterval(58.4), now: now) == 59, "seconds left rounds like the bar")
+    check(Countdown.text(until: now.addingTimeInterval(-3), now: now) == "00:00", "past deadline reads zero")
+}
+
 if failures == 0 { print("all \(checks) checks passed"); exit(0) }
 print("\(failures) of \(checks) checks failed"); exit(1)

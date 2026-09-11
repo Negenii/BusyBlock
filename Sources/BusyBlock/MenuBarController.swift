@@ -22,6 +22,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.openSettings = openSettings
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
+        // Monospaced digits: with proportional ones the countdown changes width
+        // every second and shoves the rest of the menu bar sideways.
+        if let button = item.button {
+            button.font = .monospacedDigitSystemFont(ofSize: button.font?.pointSize ?? NSFont.systemFontSize,
+                                                     weight: .regular)
+        }
         buildMenu()
         controller.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         controller.$lastError.receive(on: DispatchQueue.main).sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
@@ -122,9 +128,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func remaining(_ s: BlockState) -> String {
         guard let end = s.endsAt else { return "" }
-        // Bar shows whole seconds counting down: 58.4 s left reads as 59.
-        let secs = max(0, Int((end.timeIntervalSinceNow - 0.05).rounded(.up)))
-        return String(format: "%d:%02d", secs / 60, secs % 60)
+        return Countdown.text(until: end)
     }
 
     @objc private func showSettings() { openSettings() }

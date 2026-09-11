@@ -112,12 +112,15 @@ function stateAfterHelperLoss(last, nowMs, lastContactMs) {
   return Object.assign({}, last, { helperDown: true, endsAt: last.endsAt || until, barConnected: false });
 }
 
+// The shape the bar's own screen uses: MM:SS under an hour, H:MM:SS over it,
+// padded so the text keeps its width from one second to the next.
 function formatRemaining(endsAtMs, nowMs) {
   if (!endsAtMs) return "";
   // Bar counts whole seconds down: 58.4 s left shows as 59.
   const secs = Math.max(0, Math.ceil((endsAtMs - (nowMs || Date.now())) / 1000 - 0.05));
-  const m = Math.floor(secs / 60), s = secs % 60;
-  return m + ":" + (s < 10 ? "0" : "") + s;
+  const pad = (n) => (n < 10 ? "0" : "") + n;
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+  return h > 0 ? h + ":" + pad(m) + ":" + pad(s) : pad(m) + ":" + pad(s);
 }
 
 if (typeof module !== "undefined" && module.exports) {
