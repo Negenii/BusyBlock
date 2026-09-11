@@ -49,3 +49,9 @@ public enum OriginPolicy {
             || o.hasPrefix("safari-web-extension://") || o.hasPrefix("extension://")
     }
 }
+
+/// Where "buy me a coffee" points. One place, so the app and the repository
+/// can't drift apart.
+public enum Support {
+    public static let page = URL(string: "https://buymeacoffee.com/low.effort")!
+}

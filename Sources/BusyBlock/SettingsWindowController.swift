@@ -215,6 +215,26 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         root.addArrangedSubview(pillsHint)
         root.addArrangedSubview(pills)
 
+        // Footer: the tour again, and a way to say thanks.
+        let replay = NSButton(title: "Show the welcome tour again", target: self, action: #selector(replayOnboarding))
+        replay.isBordered = false
+        replay.font = .systemFont(ofSize: 11)
+        replay.contentTintColor = .secondaryLabelColor
+        let coffee = NSButton(title: "Buy me a coffee", target: self, action: #selector(openSupport))
+        coffee.bezelStyle = .rounded
+        coffee.controlSize = .small
+        coffee.font = .systemFont(ofSize: 11)
+        coffee.image = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: nil)
+        coffee.imagePosition = .imageLeading
+        coffee.toolTip = "BusyBlock is free. If it keeps you off the internet, buy me a coffee."
+        let gap = NSView()
+        gap.setContentHuggingPriority(.init(1), for: .horizontal)
+        let footer = NSStackView(views: [replay, gap, coffee])
+        footer.orientation = .horizontal
+        footer.alignment = .centerY
+        footer.spacing = 10
+        footer.edgeInsets = NSEdgeInsets(top: 6, left: 0, bottom: 0, right: 0)
+        root.addArrangedSubview(footer)
 
         for v in root.arrangedSubviews {
             root.widthAnchor.constraint(equalTo: v.widthAnchor, constant: 48).isActive = true
@@ -478,6 +498,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     var onReplayOnboarding: (() -> Void)?
     @objc private func replayOnboarding() { onReplayOnboarding?() }
+
+    @objc private func openSupport() { NSWorkspace.shared.open(Support.page) }
 
     @objc private func toggleLogin() {
         guard #available(macOS 13, *) else { return }
