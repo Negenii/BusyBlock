@@ -43,7 +43,11 @@ function escapeRegex(text) {
 // extension URL. Redirect to the helper's /go?u=<site> instead (plain http,
 // stable); the content script on that page hops to blocked.html?u=… using the
 // current extension URL.
-function rulesFor(domains, blockedPage, viaHelper) {
+// `mainFrame` = "redirect" (default) or "block". Safari: a redirect to the
+// extension page stalls every navigation started from the address bar (blank
+// tab, no URL, forever), so there the main frame is blocked outright and the
+// worker moves the tab to the block page once the blocked URL has committed.
+function rulesFor(domains, blockedPage, viaHelper, mainFrame) {
   const rules = [];
   domains.forEach((domain, index) => {
     const slash = domain.indexOf("/");
@@ -54,7 +58,7 @@ function rulesFor(domains, blockedPage, viaHelper) {
     rules.push({
       id: index * 2 + 1,
       priority: 1,
-      action: { type: "redirect", redirect },
+      action: mainFrame === "block" ? { type: "block" } : { type: "redirect", redirect },
       condition: { regexFilter: "^https?://([^/]*\\.)?" + escapeRegex(host) + tail + "$", resourceTypes: ["main_frame"] }
     });
     rules.push({
@@ -80,7 +84,8 @@ function applyRules(api, state, port) {
   // person is still typing. The extension URL is a secure scheme, and a
   // preloaded block page just stays hidden until they actually go there.
   // Safari's per-install UUID is handled by rewriting rules on startup.
-  const wanted = rulesFor(domains, blockedPage, null);
+  const safari = blockedPage.startsWith("safari-web-extension://");
+  const wanted = rulesFor(domains, blockedPage, null, safari ? "block" : "redirect");
   const norm = (rs) => JSON.stringify(rs.map((r) => ({ id: r.id, action: r.action, condition: r.condition })).sort((x, y) => x.id - y.id));
   applyRulesQueue = applyRulesQueue.then(async () => {
     const existing = await api.declarativeNetRequest.getDynamicRules();

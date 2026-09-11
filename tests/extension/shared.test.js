@@ -26,12 +26,12 @@ function fakeApi(base, initial) {
   } }, rules: () => rules, calls };
 }
 
-test("applyRules writes helper-based rules in Safari and clears them when not blocking", async () => {
+test("applyRules writes block rules in Safari and clears them when not blocking", async () => {
   const f = fakeApi("safari-web-extension://OLD-UUID/", [{ id: 1, action: { type: "redirect", redirect: { extensionPath: "/blocked.html" } }, condition: {} }]);
   const changed = await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
   assert.equal(changed, true);
   assert.equal(f.rules().length, 2);
-  assert.equal(f.rules()[0].action.redirect.regexSubstitution, "safari-web-extension://OLD-UUID/blocked.html?u=\\0");
+  assert.deepEqual(f.rules()[0].action, { type: "block" });
   const again = await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
   assert.equal(again, false, "identical rules are left alone");
   await applyRules(f.api, { isBlocking: false, domains: ["x.com"] }, 48321);
@@ -59,6 +59,14 @@ test("nothing blocked when not blocking or bad input", () => {
   assert.equal(shouldBlock("https://youtube.com/", null), false);
 });
 
+test("rulesFor in block mode blocks the main frame instead of redirecting", () => {
+  const rules = rulesFor(["youtube.com"], "safari-web-extension://abc/blocked.html", null, "block");
+  assert.equal(rules.length, 2);
+  assert.deepEqual(rules[0].action, { type: "block" });
+  assert.deepEqual(rules[0].condition.resourceTypes, ["main_frame"]);
+  assert.deepEqual(rules[1].action, { type: "block" });
+});
+
 test("rulesFor makes redirect + block per entry with unique ids", () => {
   const rules = rulesFor(["youtube.com", "reddit.com/r"], "chrome-extension://abc/blocked.html");
   assert.equal(rules.length, 4);
@@ -73,10 +81,14 @@ test("rulesFor makes redirect + block per entry with unique ids", () => {
   assert.equal(rules[3].condition.urlFilter, "||reddit.com^");
 });
 
-test("applyRules redirects straight to the extension page in Safari too", async () => {
-  const f = fakeApi("safari-web-extension://UUID/", []);
-  await applyRules(f.api, { isBlocking: true, domains: ["x.com"] }, 48321);
-  assert.equal(f.rules()[0].action.redirect.regexSubstitution, "safari-web-extension://UUID/blocked.html?u=\\0");
+test("applyRules blocks the main frame in Safari (address-bar loads stall on a redirect) and redirects elsewhere", async () => {
+  const s = fakeApi("safari-web-extension://UUID/", []);
+  await applyRules(s.api, { isBlocking: true, domains: ["x.com"] }, 48321);
+  assert.deepEqual(s.rules()[0].action, { type: "block" });
+  assert.deepEqual(s.rules()[0].condition.resourceTypes, ["main_frame"]);
+  const c = fakeApi("chrome-extension://abc/", []);
+  await applyRules(c.api, { isBlocking: true, domains: ["x.com"] }, 48321);
+  assert.equal(c.rules()[0].action.redirect.regexSubstitution, "chrome-extension://abc/blocked.html?u=\\0");
 });
 
 test("formatRemaining and stateURL", () => {

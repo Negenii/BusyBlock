@@ -116,6 +116,78 @@ function updateRules(state) {
   return applyRules(api, state, port).then(() => { appliedKey = key; });
 }
 
+// Safari: the rules only block the main frame (see rulesFor), so a blocked
+// site leaves a blank tab. The worker moves that tab to the block page.
+//
+// Two things make this fiddly. Safari preloads the address bar's top hit in a
+// hidden tab, and hopping a hidden tab makes it preload again, forever — so
+// only the tab in front of the person is ever moved. And a tab whose load was
+// blocked sometimes reports no URL at all, so the URL seen in the navigation
+// event is remembered and used when the tab itself can't say where it went.
+const hopped = new Map();   // url -> when a tab was last moved away from it
+const pending = new Map();  // tabId -> url whose load we blocked
+let hopTimes = [];          // brake against any loop the throttles miss
+
+function rememberBlocked(tabId, url) {
+  if (tabId === undefined || !url || !/^https?:/.test(url)) return;
+  if (!lastState || !lastState.isBlocking || !shouldBlock(url, lastState)) return;
+  pending.set(tabId, url);
+  const now = Date.now();
+  for (const [id, u] of pending) if (typeof u !== "string") pending.delete(id);
+  if (pending.size > 50) pending.clear();
+  hopTimes = hopTimes.filter((t) => now - t < 5000);
+}
+
+function hopIfBlocked(tabId, url, why, allowInactive) {
+  const target = url && /^https?:/.test(url) ? url : pending.get(tabId);
+  if (!target) return;
+  const now = Date.now();
+  if (now - (hopped.get(target) || 0) < 2000) return;
+  hopTimes = hopTimes.filter((t) => now - t < 5000);
+  if (hopTimes.length >= 8) { if (hopTimes.length === 8) { hopTimes.push(now); report("hop brake: too many hops, pausing"); } return; }
+  const decide = async (s) => {
+    if (!s || !s.isBlocking || !shouldBlock(target, s)) return;
+    let tab = null;
+    try { tab = await api.tabs.get(tabId); } catch (_) { return; }
+    if (!tab || (!tab.active && !allowInactive)) return;   // hidden tab: a preload, leave it alone
+    if (tab.url && !shouldBlock(tab.url, s)) return;       // already moved on
+    if (Date.now() - (hopped.get(target) || 0) < 2000) return;   // several events land per visit
+    hopped.set(target, Date.now());
+    hopTimes.push(Date.now());
+    pending.delete(tabId);
+    report("hop " + why + " tab=" + tabId + " " + target.slice(0, 80));
+    api.tabs.update(tabId, { url: api.runtime.getURL("blocked.html") + "?u=" + encodeURIComponent(target) }).catch(() => {});
+  };
+  if (lastState) decide(lastState); else Promise.race([sync(), new Promise((r) => setTimeout(() => r(null), 4000))]).then(decide);
+}
+
+// Last resort: every second, look at the tab in front of the person. Covers
+// the paths that fire no usable event, above all a preloaded top hit that
+// Safari swaps in when Return is pressed.
+function sweepActiveTabs() {
+  if (!lastState || !lastState.isBlocking) return;
+  api.tabs.query({ active: true }).then((tabs) => {
+    for (const tab of tabs) if (tab.id !== undefined) hopIfBlocked(tab.id, tab.url || "", "sweep");
+  }).catch(() => {});
+}
+
+if (IS_SAFARI) {
+  api.tabs.onUpdated.addListener((tabId, info, tab) => {
+    const url = info.url || (tab && tab.url) || "";
+    rememberBlocked(tabId, url);
+    if (info.url || info.status === "complete") hopIfBlocked(tabId, url, "onUpdated");
+  });
+  api.tabs.onActivated.addListener((info) => {
+    api.tabs.get(info.tabId).then((tab) => hopIfBlocked(tab.id, tab.url || "", "onActivated")).catch(() => {});
+  });
+  api.tabs.onRemoved.addListener((tabId) => pending.delete(tabId));
+  if (api.webNavigation) {
+    api.webNavigation.onBeforeNavigate.addListener((d) => { if (d.frameId === 0) rememberBlocked(d.tabId, d.url); });
+    api.webNavigation.onErrorOccurred.addListener((d) => { if (d.frameId === 0) { rememberBlocked(d.tabId, d.url); hopIfBlocked(d.tabId, d.url, "onErrorOccurred"); } });
+  }
+  setInterval(sweepActiveTabs, 1000);
+}
+
 // Rules only fire on navigation; tabs already sitting on a blocked site get moved.
 function enforceOpenTabs(state) {
   const page = api.runtime.getURL("blocked.html");
@@ -123,6 +195,9 @@ function enforceOpenTabs(state) {
     for (const tab of tabs) {
       if (tab.id === undefined || !tab.url) continue;
       if (!state.isBlocking || !shouldBlock(tab.url, state)) continue;
+      // Safari: go through the throttled path, so a hidden tab Safari keeps
+      // reloading can't turn this into a loop.
+      if (IS_SAFARI) { hopIfBlocked(tab.id, tab.url, "openTab", true); continue; }
       api.tabs.update(tab.id, { url: page + "?u=" + encodeURIComponent(tab.url) }).catch(() => {});
     }
   }).catch(() => {});

@@ -59,6 +59,7 @@
     "alarms",
     "tabs",
     "storage",
+    "webNavigation",
     "nativeMessaging"
   ],
   "host_permissions": [
