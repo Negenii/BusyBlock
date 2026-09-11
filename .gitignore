@@ -2,7 +2,4 @@
 build/
 .DS_Store
 node_modules/
-safari/**/xcuserdata/
-safari/**/DerivedData/
-safari/**/build/
 BusyBlock.xcodeproj/
