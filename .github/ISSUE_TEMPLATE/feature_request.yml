@@ -1,0 +1,11 @@
+name: Idea
+description: Something BusyBlock should do
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should it do
+      description: What you are trying to get done, and where BusyBlock gets in the way.
+    validations:
+      required: true

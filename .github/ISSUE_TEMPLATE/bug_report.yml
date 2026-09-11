@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work the way it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: BusyBlock version (Settings → About), macOS version, browser.
+      placeholder: BusyBlock 0.1.0, macOS 15.2, Safari 18
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: How is the bar connected
+      options: [USB, Wi-Fi, Not connected, Not sure]
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: >
+        The tail of ~/Library/Application Support/BusyBlock/busyblock.log around
+        the moment it went wrong. Have a look before pasting; it lists the sites
+        you block.
+      render: text
