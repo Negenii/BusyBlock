@@ -54,4 +54,5 @@ public enum OriginPolicy {
 /// can't drift apart.
 public enum Support {
     public static let page = URL(string: "https://buymeacoffee.com/low.effort")!
+    public static let repo = URL(string: "https://github.com/negenii/BusyBlock")!
 }

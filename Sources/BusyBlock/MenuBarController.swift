@@ -50,6 +50,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let coffee = NSMenuItem(title: "Buy Me a Coffee…", action: #selector(openSupport), keyEquivalent: "")
         coffee.target = self
         menu.addItem(coffee)
+        let about = NSMenuItem(title: "About BusyBlock", action: #selector(openAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit BusyBlock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -127,5 +130,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func showSettings() { openSettings() }
 
     @objc private func openSupport() { NSWorkspace.shared.open(Support.page) }
+
+    @objc private func openAbout() { AboutWindowController.shared.present() }
 
 }

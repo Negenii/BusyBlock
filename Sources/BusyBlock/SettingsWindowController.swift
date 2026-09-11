@@ -229,7 +229,11 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         coffee.toolTip = "BusyBlock is free. If it keeps you off the internet, buy me a coffee."
         let gap = NSView()
         gap.setContentHuggingPriority(.init(1), for: .horizontal)
-        let footer = NSStackView(views: [replay, gap, coffee])
+        let about = NSButton(title: "About", target: self, action: #selector(openAbout))
+        about.isBordered = false
+        about.font = .systemFont(ofSize: 11)
+        about.contentTintColor = .secondaryLabelColor
+        let footer = NSStackView(views: [replay, about, gap, coffee])
         footer.orientation = .horizontal
         footer.alignment = .centerY
         footer.spacing = 10
@@ -500,6 +504,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     @objc private func replayOnboarding() { onReplayOnboarding?() }
 
     @objc private func openSupport() { NSWorkspace.shared.open(Support.page) }
+
+    @objc private func openAbout() { AboutWindowController.shared.present() }
 
     @objc private func toggleLogin() {
         guard #available(macOS 13, *) else { return }
