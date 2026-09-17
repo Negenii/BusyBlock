@@ -13,6 +13,13 @@
     <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <!-- Sparkle: update feed, the key that signs updates, daily checks, no profiling. -->
+    <key>SUFeedURL</key><string>https://raw.githubusercontent.com/Negenii/BusyBlock/main/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>p9MIGebXnMMng9XwFfyWnBMxgwbMPAb6fMvhDmxhBCc=</string>
+    <key>SUEnableAutomaticChecks</key><true/>
+    <key>SUScheduledCheckInterval</key><integer>86400</integer>
+    <key>SUEnableSystemProfiling</key><false/>
+    <key>SUAutomaticallyUpdate</key><false/>
     <key>LSUIElement</key><true/>
     <key>CFBundleURLTypes</key>
     <array><dict>

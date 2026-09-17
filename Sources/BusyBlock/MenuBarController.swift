@@ -56,6 +56,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let coffee = NSMenuItem(title: "Buy Me a Coffee…", action: #selector(openSupport), keyEquivalent: "")
         coffee.target = self
         menu.addItem(coffee)
+        if Updater.shared.available {
+            let update = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+            update.target = self
+            menu.addItem(update)
+        }
         let about = NSMenuItem(title: "About BusyBlock", action: #selector(openAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
@@ -136,5 +141,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func openSupport() { NSWorkspace.shared.open(Support.page) }
 
     @objc private func openAbout() { AboutWindowController.shared.present() }
+
+    @objc private func checkForUpdates() { Updater.shared.checkNow() }
 
 }

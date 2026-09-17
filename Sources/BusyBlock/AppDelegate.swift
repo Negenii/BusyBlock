@@ -133,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log("BusyBlock started, config at \(store.url.path)")
         // The settings window is the app's window: show it when a person
         // launched us (Finder, Launchpad, Spotlight), not when login did.
+        if CommandLine.arguments.contains("--check-updates") { Updater.shared.checkNow() }
         if CommandLine.arguments.contains("--about") {
             AboutWindowController.shared.present()
         } else if CommandLine.arguments.contains("--onboarding") || !store.config.onboardingDone {

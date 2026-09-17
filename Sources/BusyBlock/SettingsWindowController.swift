@@ -36,6 +36,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let screenCheck = NSButton(checkboxWithTitle: "Show the bar's screen in the browser", target: nil, action: nil)
     private let timerCheck = NSButton(checkboxWithTitle: "Show the countdown in the menu bar (the BUSY app shows it too)", target: nil, action: nil)
     private let loginCheck = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
+    private let updateCheck = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
     private let menuIconCheck = NSButton(checkboxWithTitle: "Show icon in the menu bar", target: nil, action: nil)
     private let dockIconCheck = NSButton(checkboxWithTitle: "Show icon in the Dock", target: nil, action: nil)
 
@@ -171,6 +172,12 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         loginCheck.target = self
         loginCheck.action = #selector(toggleLogin)
         root.addArrangedSubview(loginCheck)
+        if Updater.shared.available {
+            updateCheck.target = self
+            updateCheck.action = #selector(toggleUpdates)
+            updateCheck.toolTip = "Asks GitHub once a day whether a newer version exists. Nothing else is sent."
+            root.addArrangedSubview(updateCheck)
+        }
 
         appsCallout = callout("Start here: drop the apps you want hidden, or pick from the suggestions")
         root.addArrangedSubview(appsCallout)
@@ -382,6 +389,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             loginCheck.state = SMAppService.mainApp.status == .enabled ? .on : .off
             loginCheck.isEnabled = Bundle.main.bundleURL.pathExtension == "app"
         }
+        updateCheck.state = Updater.shared.checksAutomatically ? .on : .off
         apps = c.blockedApps
         rebuildAppChips()
         rebuildAppPills()
@@ -503,6 +511,8 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     @objc private func openSupport() { NSWorkspace.shared.open(Support.page) }
 
     @objc private func openAbout() { AboutWindowController.shared.present() }
+
+    @objc private func toggleUpdates() { Updater.shared.checksAutomatically = updateCheck.state == .on }
 
     @objc private func toggleLogin() {
         guard #available(macOS 13, *) else { return }

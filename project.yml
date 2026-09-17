@@ -17,6 +17,9 @@ settings:
 packages:
   BusyBlockCore:
     path: .
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.10.0
 targets:
   BusyBlock:
     type: application
@@ -30,6 +33,8 @@ targets:
     dependencies:
       - package: BusyBlockCore
         product: BusyBlockCore
+      - package: Sparkle
+        product: Sparkle
       - target: BusyBlock Extension
     settings:
       base:

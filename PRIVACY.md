@@ -39,12 +39,16 @@ left.
 
 ## What leaves your Mac
 
-Two things, both on your own initiative:
+Three things:
 
 1. **Your BUSY Bar.** The app talks to your bar over USB or over your local
    network, to read the timer and the screen. Your bar is a device in your room,
    not a service.
-2. **Website icons.** To show a site's icon next to it in the settings window and
+2. **Update checks.** Once a day the app asks GitHub whether a newer version of
+   BusyBlock exists, by fetching one small file. The request carries what any
+   web request carries: your IP address and the version you run. No identifier
+   of you, no usage data. You can switch it off in Settings.
+3. **Website icons.** To show a site's icon next to it in the settings window and
    on the block page, the app asks that website for its icon. For sites that
    serve none, it falls back to Google's and DuckDuckGo's public icon services.
    Those requests carry a domain name from the list you typed. They carry nothing

@@ -4,6 +4,11 @@ Notable changes, newest first. Versions follow [semantic versioning](https://sem
 
 ## [Unreleased]
 
+## [1.0.1] — 2026-09-17
+
+- BusyBlock now updates itself. It checks once a day, shows what changed and
+  installs the new version in one click. Switch it off in Settings if you would
+  rather not.
 - The welcome tour opens the Chrome Web Store and addons.mozilla.org pages of
   the extension directly, instead of a store search.
 
