@@ -3,3 +3,10 @@ build/
 .DS_Store
 node_modules/
 BusyBlock.xcodeproj/
+
+# Signing material never goes into the repository.
+*.p12
+*.pfx
+*.cer
+*.certSigningRequest
+*.keychain-db
