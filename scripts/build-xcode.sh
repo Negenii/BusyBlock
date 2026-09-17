@@ -2,7 +2,7 @@
 # Builds build/xcode/Build/Products/Debug/BusyBlock.app (helper + Safari extension) with Xcode.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-DEV="${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer}"
+DEV="${DEVELOPER_DIR:-$(xcode-select -p)}"   # whichever Xcode is selected
 [ -d "$DEV" ] || DEV=$(xcode-select -p)
 # Regenerate the project only when the spec changed: a regenerated project makes
 # Xcode rebuild and re-sign the Safari extension, and Safari then reinstalls it
