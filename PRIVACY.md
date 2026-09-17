@@ -19,14 +19,15 @@ a file on your own Mac:
 
 A log file sits next to it and records what the app is doing: how many
 blocking rules the browser extension has, and, in Safari, the addresses of
-blocked pages you tried to open. It never leaves your Mac.
+blocked pages you tried to open. It never leaves your Mac. Both files are yours;
+deleting the app's folder removes everything it keeps.
 
 ## What the extension sees, and why
 
 The extension reads the address of the page you are opening to decide whether it
 is on your block list. That happens inside your browser, on your machine. The
-address is never transmitted anywhere and is never stored beyond the moment the
-decision is made.
+address never leaves your Mac. It isn't stored either, except that in Safari a
+blocked page's address is noted in the local log described above.
 
 It asks for access to every website because it cannot know in advance which site
 you are about to open. It uses that access for one thing only: comparing an
