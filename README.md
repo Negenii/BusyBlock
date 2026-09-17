@@ -68,7 +68,7 @@ session is blocking.
 
 ## Privacy
 
-No data collected or shared (except favicons download).
+No data collected or shared (except favicons download and update checks).
 
 Full policy: [PRIVACY.md](PRIVACY.md).
 
