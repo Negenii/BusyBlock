@@ -14,7 +14,7 @@ body:
     attributes:
       label: Versions
       description: BusyBlock version (Settings → About), macOS version, browser.
-      placeholder: BusyBlock 0.1.0, macOS 15.2, Safari 18
+      placeholder: BusyBlock 1.0.0, macOS 27.0, Safari 18
     validations:
       required: true
   - type: dropdown

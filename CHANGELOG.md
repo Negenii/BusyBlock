@@ -4,7 +4,7 @@ Notable changes, newest first. Versions follow [semantic versioning](https://sem
 
 ## [Unreleased]
 
-## [0.1.0] — 2026-09-17
+## [1.0.0] — 2026-09-17
 
 First public release.
 
