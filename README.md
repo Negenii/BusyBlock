@@ -2,8 +2,8 @@
 
 **The missing distraction blocker for Mac, to complement your BUSY Bar**
 
-[![Release](https://img.shields.io/github/v/release/negenii/BusyBlock?color=brightgreen)](https://github.com/negenii/BusyBlock/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/negenii/BusyBlock/total)](https://github.com/negenii/BusyBlock/releases)
+[![Release](https://img.shields.io/github/v/release/Negenii/BusyBlock)](https://github.com/Negenii/BusyBlock/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Negenii/BusyBlock/total)](https://github.com/Negenii/BusyBlock/releases)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-lightgrey)
 
@@ -34,7 +34,7 @@ your actual BUSY Bar display.
 
 ## Install
 
-Download the latest DMG from [Releases](https://github.com/negenii/BusyBlock/releases/latest),
+Download the latest DMG from [Releases](https://github.com/Negenii/BusyBlock/releases/latest),
 drag BusyBlock to Applications, and open it. 
 
 ## Set up
@@ -87,7 +87,7 @@ keeps blocking until it would have ended anyway.
 **Safari forgot the extension after an update.** Safari disables extensions when
 their app changes. Settings → Extensions, tick it again.
 
-Still stuck? [Open an issue](https://github.com/negenii/BusyBlock/issues) and
+Still stuck? [Open an issue](https://github.com/Negenii/BusyBlock/issues) and
 include your macOS version, your browser, and what the Bar connection section
 says. The log lives at
 `~/Library/Application Support/BusyBlock/busyblock.log`.
