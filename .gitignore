@@ -10,3 +10,6 @@ BusyBlock.xcodeproj/
 *.cer
 *.certSigningRequest
 *.keychain-db
+
+# Maintainer notes: not for the public repository.
+*.local.md
