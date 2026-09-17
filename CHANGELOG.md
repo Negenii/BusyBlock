@@ -4,6 +4,9 @@ Notable changes, newest first. Versions follow [semantic versioning](https://sem
 
 ## [Unreleased]
 
+- The welcome tour opens the Chrome Web Store and addons.mozilla.org pages of
+  the extension directly, instead of a store search.
+
 ## [1.0.0] — 2026-09-17
 
 First public release.

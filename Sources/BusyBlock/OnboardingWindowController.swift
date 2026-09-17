@@ -786,16 +786,16 @@ final class IllustrationView: NSView {
 }
 
 /// Browsers other than Safari, and where their extension store listing lives.
-/// Store links are placeholders until the listings exist.
 enum BrowserStore {
     struct Entry { let bundleID: String; let name: String; let store: URL }
-    static let chromeWebStore = URL(string: "https://chromewebstore.google.com/search/BusyBlock")!
+    static let chromeWebStore = URL(string: "https://chromewebstore.google.com/detail/oljobefkgjdknpeoiaoggijphcjljlgi")!
+    static let firefoxAddons = URL(string: "https://addons.mozilla.org/firefox/addon/busyblock/")!
     static let all: [Entry] = [
         Entry(bundleID: "com.google.Chrome", name: "Chrome", store: chromeWebStore),
         Entry(bundleID: "company.thebrowser.Browser", name: "Arc", store: chromeWebStore),
         Entry(bundleID: "com.brave.Browser", name: "Brave", store: chromeWebStore),
         Entry(bundleID: "com.microsoft.edgemac", name: "Edge", store: chromeWebStore),
-        Entry(bundleID: "org.mozilla.firefox", name: "Firefox", store: URL(string: "https://addons.mozilla.org/firefox/search/?q=BusyBlock")!),
+        Entry(bundleID: "org.mozilla.firefox", name: "Firefox", store: firefoxAddons),
     ]
 }
 
