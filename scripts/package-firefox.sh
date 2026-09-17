@@ -21,7 +21,13 @@ import json, sys
 path, version = sys.argv[1], sys.argv[2]
 m = json.load(open(path))
 m["version"] = version
-m["browser_specific_settings"] = {"gecko": {"id": "busyblock@negenii.me", "strict_min_version": "128.0"}}
+# Required for new add-ons since November 2025. The extension only talks to the
+# BusyBlock app over 127.0.0.1 and sends nothing off the machine.
+m["browser_specific_settings"] = {"gecko": {
+    "id": "busyblock@negenii.me",
+    "strict_min_version": "140.0",
+    "data_collection_permissions": {"required": ["none"]},
+}}
 safari_only = {"nativeMessaging", "webNavigation"}
 m["permissions"] = [p for p in m["permissions"] if p not in safari_only]
 m["background"] = {"scripts": m["background"]["scripts"]}
