@@ -1,6 +1,6 @@
 # Privacy policy
 
-BusyBlock, the macOS app and its browser extension. Last updated 11 September 2026.
+BusyBlock, the macOS app and its browser extension. Last updated 17 September 2026.
 
 ## The short version
 
@@ -17,9 +17,9 @@ a file on your own Mac:
 ~/Library/Application Support/BusyBlock/config.json
 ```
 
-A log file sits next to it and records what the app is doing, including which
-websites your browser extension has rules for. Both files are yours. Deleting the
-app's folder removes everything it keeps.
+A log file sits next to it and records what the app is doing: how many
+blocking rules the browser extension has, and, in Safari, the addresses of
+blocked pages you tried to open. It never leaves your Mac.
 
 ## What the extension sees, and why
 
