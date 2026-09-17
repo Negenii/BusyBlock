@@ -4,7 +4,7 @@
         <title>BusyBlock</title>
         <item>
             <title>1.0.1</title>
-            <pubDate>Thu, 17 Sep 2026 18:50:58 +0100</pubDate>
+            <pubDate>Thu, 17 Sep 2026 18:56:06 +0100</pubDate>
             <link>https://github.com/Negenii/BusyBlock</link>
             <sparkle:version>2</sparkle:version>
             <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
@@ -13,7 +13,7 @@
 <ul><li>BusyBlock now updates itself. It checks once a day, shows what changed and installs the new version in one click. Switch it off in Settings if you would rather not.</li><li>The welcome tour opens the Chrome Web Store and addons.mozilla.org pages of the extension directly, instead of a store search.</li></ul>
 </body></html>
 ]]></description>
-            <enclosure url="https://github.com/Negenii/BusyBlock/releases/download/v1.0.1/BusyBlock-1.0.1.dmg" length="1992652" type="application/octet-stream" sparkle:edSignature="7MiifoFNuMiHHgv6tlCb2s8VEkYlJVXLzqyaD3+E89eHg5kH68ObS0fUn6y0hWRtZKmKxkZ4sTwFlH2wKDd5AQ=="/>
+            <enclosure url="https://github.com/Negenii/BusyBlock/releases/download/v1.0.1/BusyBlock-1.0.1.dmg" length="1993874" type="application/octet-stream" sparkle:edSignature="uF9U0narijguUVVE8IuDYNLSYfFeL5tGbZxSGnUlnREQEB/cpwg+Qla1OQqKEvDttzIEjO0mw1yo3NPFPc20AQ=="/>
         </item>
     </channel>
 </rss>
